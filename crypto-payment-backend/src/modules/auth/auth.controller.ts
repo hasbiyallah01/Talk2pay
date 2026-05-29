@@ -5,46 +5,34 @@ import {
   HttpCode,
   HttpStatus,
   ValidationPipe,
-  UseGuards,
-  Request,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBody,
-  ApiBearerAuth,
-  ApiUnauthorizedResponse,
   ApiBadRequestResponse,
   ApiConflictResponse,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { JwtService } from './jwt.service';
-import { LoginDto } from './dto/login.dto';
+import { SendOtpDto, VerifyOtpDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { VerifyOtpDto } from './dto/verify-otp.dto';
-import { AuthThrottle, RegisterThrottle } from '../../common/decorators/auth-throttle.decorator';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import type { AuthenticatedRequest } from './guards/jwt-auth.guard';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly jwtService: JwtService,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  @RegisterThrottle()
   @ApiOperation({ 
     summary: 'Register a new merchant account',
-    description: 'Creates a new merchant account with phone number, password, and business details'
+    description: 'Creates a new merchant account with phone number and first name. Automatically sends OTP for verification.'
   })
   @ApiBody({ type: RegisterDto })
   @ApiResponse({
     status: 201,
-    description: 'Merchant account created successfully',
+    description: 'Merchant account created successfully and OTP sent',
     schema: {
       type: 'object',
       properties: {
@@ -52,8 +40,8 @@ export class AuthController {
         data: {
           type: 'object',
           properties: {
-            merchantId: { type: 'string', example: 'uuid-merchant-id' },
-            message: { type: 'string', example: 'Merchant registered successfully' }
+            merchantId: { type: 'string', example: 'merchant_1234567890_abc123' },
+            message: { type: 'string', example: 'Merchant account created successfully. OTP sent to your phone.' }
           }
         }
       }
@@ -75,66 +63,11 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @AuthThrottle()
   @ApiOperation({ 
-    summary: 'Authenticate merchant',
-    description: 'Authenticates merchant with phone number and password, returns JWT token'
+    summary: 'Send OTP to phone number',
+    description: 'Sends a one-time password to the registered phone number for authentication'
   })
-  @ApiBody({ type: LoginDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Authentication successful',
-    schema: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean', example: true },
-        data: {
-          type: 'object',
-          properties: {
-            token: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
-            merchant: {
-              type: 'object',
-              properties: {
-                id: { type: 'string', example: 'uuid-merchant-id' },
-                phoneNumber: { type: 'string', example: '+2348012345678' },
-                businessName: { type: 'string', example: 'My Business' }
-              }
-            }
-          }
-        }
-      }
-    }
-  })
-  @ApiBadRequestResponse({ description: 'Invalid input data' })
-  @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
-  async login(@Body(ValidationPipe) loginDto: LoginDto) {
-    const merchantData = await this.authService.login(loginDto);
-    
-    const token = this.jwtService.generateToken({
-      merchantId: merchantData.merchantId,
-      phoneNumber: merchantData.phoneNumber,
-    });
-
-    return {
-      success: true,
-      data: {
-        token,
-        merchant: {
-          id: merchantData.merchantId,
-          phoneNumber: merchantData.phoneNumber,
-          businessName: merchantData.businessName,
-        },
-      },
-    };
-  }
-
-  @Post('send-otp')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({
-    summary: 'Send verification OTP to merchant phone number',
-    description: 'Sends a one-time code to the authenticated merchant phone number for dashboard verification.'
-  })
+  @ApiBody({ type: SendOtpDto })
   @ApiResponse({
     status: 200,
     description: 'OTP sent successfully',
@@ -142,42 +75,67 @@ export class AuthController {
       type: 'object',
       properties: {
         success: { type: 'boolean', example: true },
-        message: { type: 'string', example: 'OTP sent to registered phone number' }
+        message: { type: 'string', example: 'OTP sent to your phone number' }
       }
     }
   })
-  @ApiUnauthorizedResponse({ description: 'Invalid or missing JWT token' })
-  async sendOtp(@Request() request: AuthenticatedRequest) {
-    const merchantId = request.user.merchantId;
-    return await this.authService.sendPhoneVerificationOtp(merchantId);
+  @ApiBadRequestResponse({ description: 'Invalid phone number format' })
+  @ApiUnauthorizedResponse({ description: 'Phone number not registered' })
+  async sendOtp(@Body(ValidationPipe) sendOtpDto: SendOtpDto) {
+    const result = await this.authService.sendOtp(sendOtpDto);
+    
+    return {
+      success: true,
+      message: result.message,
+    };
   }
 
   @Post('verify-otp')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({
-    summary: 'Verify phone number using OTP',
-    description: 'Verifies the authenticated merchant phone number using the one-time code sent via SMS.'
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Verify OTP and authenticate',
+    description: 'Verifies the OTP and returns authentication token with merchant details'
   })
   @ApiBody({ type: VerifyOtpDto })
   @ApiResponse({
     status: 200,
-    description: 'Phone number verified successfully',
+    description: 'OTP verified successfully, JWT bearer token returned',
     schema: {
       type: 'object',
       properties: {
         success: { type: 'boolean', example: true },
-        message: { type: 'string', example: 'Phone number verified successfully' }
+        data: {
+          type: 'object',
+          properties: {
+            token: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjaGFudElkIjoibWVyY2hhbnRfMTIzNDU2Nzg5MF9hYmMxMjMiLCJwaG9uZU51bWJlciI6IisyMzQ4MDEyMzQ1Njc4IiwiaWF0IjoxNjQwOTk1MjAwLCJleHAiOjE2NDA5OTg4MDB9.signature' },
+            merchant: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', example: 'merchant_1234567890_abc123' },
+                phoneNumber: { type: 'string', example: '+2348012345678' },
+                firstName: { type: 'string', example: 'John' }
+              }
+            }
+          }
+        }
       }
     }
   })
-  @ApiBadRequestResponse({ description: 'Invalid or expired OTP code' })
-  @ApiUnauthorizedResponse({ description: 'Invalid or missing JWT token' })
-  async verifyOtp(
-    @Request() request: AuthenticatedRequest,
-    @Body(ValidationPipe) verifyOtpDto: VerifyOtpDto,
-  ) {
-    const merchantId = request.user.merchantId;
-    return await this.authService.verifyPhoneOtp(merchantId, verifyOtpDto.otp);
+  @ApiBadRequestResponse({ description: 'Invalid OTP or phone number' })
+  @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
+  async verifyOtp(@Body(ValidationPipe) verifyOtpDto: VerifyOtpDto) {
+    const result = await this.authService.verifyOtp(verifyOtpDto);
+    
+    return {
+      success: true,
+      data: {
+        token: result.token,
+        merchant: {
+          id: result.merchantId,
+          phoneNumber: result.phoneNumber,
+          firstName: result.firstName,
+        },
+      },
+    };
   }
 }

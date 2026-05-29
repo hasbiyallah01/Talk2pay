@@ -12,11 +12,14 @@ export class MerchantEntity {
   @Column({ default: false })
   isPhoneVerified: boolean;
 
-  @Column()
-  passwordHash: string;
+  @Column({ nullable: true })
+  firstName: string;
 
-  @Column()
-  businessName: string;
+  @Column({ nullable: true })
+  walletPin: string; // Encrypted 4-6 digit PIN for WhatsApp transactions
+
+  @Column('decimal', { precision: 18, scale: 8, default: 0 })
+  walletBalance: number;
 
   @Column('simple-array')
   cryptoPreferences: CryptoType[];

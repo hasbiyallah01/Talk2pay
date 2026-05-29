@@ -9,6 +9,7 @@ import { MerchantModule } from './modules/merchant/merchant.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { TransactionModule } from './modules/transaction/transaction.module';
 import { WebhookModule } from './modules/webhook/webhook.module';
+import { WalletModule } from './modules/wallet/wallet.module';
 import { SecurityConfig } from './common/config/security.config';
 import { SecurityMiddleware } from './common/middleware/security.middleware';
 import { databaseConfig } from './common/config/database.config';
@@ -24,6 +25,7 @@ import { databaseConfig } from './common/config/database.config';
     PaymentModule,
     TransactionModule,
     WebhookModule,
+    WalletModule,
   ],
   controllers: [AppController],
   providers: [

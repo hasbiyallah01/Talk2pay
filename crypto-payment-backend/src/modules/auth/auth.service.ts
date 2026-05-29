@@ -3,40 +3,39 @@ import {
   ConflictException,
   UnauthorizedException,
   NotFoundException,
-  BadRequestException,
   Inject,
   forwardRef,
 } from '@nestjs/common';
-import * as bcrypt from 'bcrypt';
 import { Merchant, MerchantService } from '../merchant/merchant.service';
 import { CryptoType } from '../../common/enums/crypto-type.enum';
-import { LoginDto } from './dto/login.dto';
+import { SendOtpDto, VerifyOtpDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { PhoneVerificationService } from './phone-verification.service';
+import { JwtService } from './jwt.service';
 
 @Injectable()
 export class AuthService {
-  private readonly saltRounds = 10;
-
   constructor(
-    @Inject(forwardRef(() => MerchantService)) private readonly merchantService: MerchantService,
+    @Inject(forwardRef(() => MerchantService))
+    private readonly merchantService: MerchantService,
     private readonly phoneVerificationService: PhoneVerificationService,
+    private readonly jwtService: JwtService,
   ) {}
 
   async register(
     registerDto: RegisterDto,
   ): Promise<{ merchantId: string; message: string }> {
-    const { phoneNumber, password, businessName } = registerDto;
+    const { phoneNumber, firstName } = registerDto;
 
     // Check if merchant with this phone number already exists
-    const existingMerchant = await this.merchantService.findByPhoneNumber(phoneNumber);
+    const existingMerchant =
+      await this.merchantService.findByPhoneNumber(phoneNumber);
 
     if (existingMerchant) {
-      throw new ConflictException('Merchant with this phone number already exists');
+      throw new ConflictException(
+        'Merchant with this phone number already exists',
+      );
     }
-
-    // Hash the password
-    const passwordHash = await bcrypt.hash(password, this.saltRounds);
 
     // Generate unique merchant ID
     const merchantId = this.generateMerchantId();
@@ -46,8 +45,8 @@ export class AuthService {
       id: merchantId,
       phoneNumber,
       isPhoneVerified: false,
-      passwordHash,
-      businessName,
+      firstName,
+      walletBalance: 0,
       cryptoPreferences: [CryptoType.BITCOIN], // Default to Bitcoin
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -56,79 +55,78 @@ export class AuthService {
     // Store the merchant using merchant service
     await this.merchantService.createOrUpdateMerchant(newMerchant);
 
+    // Automatically send OTP for phone verification
+    await this.sendOtp({ phoneNumber });
+
     return {
       merchantId,
-      message: 'Merchant account created successfully',
+      message: 'Merchant account created successfully. OTP sent to your phone.',
     };
   }
 
-  async login(
-    loginDto: LoginDto,
-  ): Promise<{ merchantId: string; phoneNumber: string; businessName: string }> {
-    const { phoneNumber, password } = loginDto;
+  async sendOtp(sendOtpDto: SendOtpDto): Promise<{ message: string }> {
+    const { phoneNumber } = sendOtpDto;
 
-    // Find merchant by phone number using merchant service
+    // Check if merchant exists
     const merchant = await this.merchantService.findByPhoneNumber(phoneNumber);
 
     if (!merchant) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new NotFoundException('No account found with this phone number');
     }
 
-    // Validate password
-    const isPasswordValid = await bcrypt.compare(
-      password,
-      merchant.passwordHash,
-    );
+    // Send OTP
+    this.phoneVerificationService.sendOtp(phoneNumber);
 
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+    return { message: 'OTP sent to your phone number' };
+  }
+
+  async verifyOtp(verifyOtpDto: VerifyOtpDto): Promise<{
+    token: string;
+    merchantId: string;
+    phoneNumber: string;
+    firstName: string;
+  }> {
+    const { phoneNumber, otp } = verifyOtpDto;
+
+    // Find merchant by phone number
+    const merchant = await this.merchantService.findByPhoneNumber(phoneNumber);
+
+    if (!merchant) {
+      throw new UnauthorizedException('Invalid phone number');
     }
 
-    return {
+    // Verify OTP
+    this.phoneVerificationService.verifyOtp(phoneNumber, otp);
+
+    // Mark phone as verified if not already
+    if (!merchant.isPhoneVerified) {
+      merchant.isPhoneVerified = true;
+      merchant.updatedAt = new Date();
+      await this.merchantService.createOrUpdateMerchant(merchant);
+    }
+
+    // Generate JWT token
+    const token = this.jwtService.generateToken({
       merchantId: merchant.id,
       phoneNumber: merchant.phoneNumber!,
-      businessName: merchant.businessName,
+    });
+
+    return {
+      token,
+      merchantId: merchant.id,
+      phoneNumber: merchant.phoneNumber!,
+      firstName: merchant.firstName,
     };
-  }
-
-  async sendPhoneVerificationOtp(merchantId: string): Promise<{ message: string }> {
-    const merchant = await this.merchantService.findById(merchantId);
-
-    if (!merchant) {
-      throw new NotFoundException('Merchant not found');
-    }
-
-    if (!merchant.phoneNumber) {
-      throw new BadRequestException('Merchant does not have a registered phone number');
-    }
-
-    this.phoneVerificationService.sendOtp(merchant.phoneNumber);
-
-    return { message: 'OTP sent to registered phone number' };
-  }
-
-  async verifyPhoneOtp(merchantId: string, otp: string): Promise<{ message: string }> {
-    const merchant = await this.merchantService.findById(merchantId);
-
-    if (!merchant) {
-      throw new NotFoundException('Merchant not found');
-    }
-
-    if (!merchant.phoneNumber) {
-      throw new BadRequestException('Merchant does not have a registered phone number');
-    }
-
-    this.phoneVerificationService.verifyOtp(merchant.phoneNumber, otp);
-
-    merchant.isPhoneVerified = true;
-    merchant.updatedAt = new Date();
-    await this.merchantService.createOrUpdateMerchant(merchant);
-
-    return { message: 'Phone number verified successfully' };
   }
 
   async findMerchantById(merchantId: string): Promise<Merchant | null> {
     return this.merchantService.findById(merchantId);
+  }
+
+  async findMerchantByPhoneNumber(
+    phoneNumber: string,
+  ): Promise<Merchant | null> {
+    return this.merchantService.findByPhoneNumber(phoneNumber);
   }
 
   private generateMerchantId(): string {
