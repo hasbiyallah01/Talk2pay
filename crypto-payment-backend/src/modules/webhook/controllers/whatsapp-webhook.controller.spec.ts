@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { WhatsAppWebhookController } from './whatsapp-webhook.controller';
 import { PaymentService } from '../../payment/payment.service';
+import { MerchantService } from '../../merchant/merchant.service';
 import { WhatsAppWebhookDto } from '../dto/whatsapp-webhook.dto';
 import { PaymentEntity } from '../../../entities/payment.entity';
 import { MerchantEntity } from '../../../entities/merchant.entity';
@@ -39,6 +40,17 @@ describe('WhatsAppWebhookController', () => {
     const mockPaymentService = {
       createPaymentRequest: jest.fn(),
       generatePaymentLink: jest.fn(),
+      sendCrypto: jest.fn(),
+    };
+
+    const mockMerchantService = {
+      findByPhoneNumber: jest.fn().mockResolvedValue({
+        id: 'webhook-system',
+        phoneNumber: '+23465789567',
+        businessName: 'Test Business',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -47,6 +59,10 @@ describe('WhatsAppWebhookController', () => {
         {
           provide: PaymentService,
           useValue: mockPaymentService,
+        },
+        {
+          provide: MerchantService,
+          useValue: mockMerchantService,
         },
       ],
     }).compile();
@@ -182,6 +198,7 @@ describe('WhatsAppWebhookController', () => {
         expect(result).toContain('<Response><Message>');
         expect(result).toContain('Available Commands:');
         expect(result).toContain('• create &lt;amount&gt; [description] - Create a payment request');
+        expect(result).toContain('• send &lt;amount&gt; &lt;recipient_address&gt; [description] - Send crypto');
         expect(result).toContain('• help - Show this help message');
         expect(result).toContain('Example: create 50 Coffee payment');
         expect(result).toContain('</Message></Response>');
@@ -197,6 +214,67 @@ describe('WhatsAppWebhookController', () => {
         // Assert
         expect(result).toContain('Available Commands:');
       });
+
+      it('should return onboarding instructions for join command', async () => {
+        // Arrange
+        const webhookDto = { ...mockWhatsAppWebhookDto, Body: 'join' };
+
+        // Act
+        const result = await controller.handleWhatsAppWebhook(webhookDto);
+
+        // Assert
+        expect(result).toContain('Welcome to Talk2Pay!');
+        expect(result).toContain('To receive crypto, send: create &lt;amount&gt; [description]');
+        expect(result).toContain('To send crypto, send: send &lt;amount&gt; &lt;recipient_address&gt; [description]');
+      });
+    });
+
+    describe('send command', () => {
+      it('should create send transaction and return TwiML response for valid send command', async () => {
+        // Arrange
+        const webhookDto = { ...mockWhatsAppWebhookDto, Body: 'send 0.5 bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh Rent' };
+        const mockSendResult = {
+          transaction: {
+            id: 'txn_send_id',
+            amount: 0.5,
+            cryptoType: 'bitcoin',
+            recipientAddress: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+            description: 'Rent',
+            status: 'completed',
+            createdAt: new Date('2023-01-01T00:00:00Z'),
+            completedAt: new Date('2023-01-01T00:00:00Z'),
+          },
+        };
+
+        paymentService.sendCrypto.mockResolvedValue(mockSendResult);
+
+        // Act
+        const result = await controller.handleWhatsAppWebhook(webhookDto);
+
+        // Assert
+        expect(paymentService.sendCrypto).toHaveBeenCalledWith('webhook-system', {
+          amount: 0.5,
+          recipientAddress: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+          description: 'Rent',
+        });
+        expect(result).toContain('Crypto Send Created');
+        expect(result).toContain('Amount: 0.5');
+        expect(result).toContain('Network: bitcoin');
+        expect(result).toContain('Recipient: bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh');
+        expect(result).toContain('Description: Rent');
+      });
+
+      it('should return error for send command without recipient address', async () => {
+        // Arrange
+        const webhookDto = { ...mockWhatsAppWebhookDto, Body: 'send 0.5' };
+
+        // Act
+        const result = await controller.handleWhatsAppWebhook(webhookDto);
+
+        // Assert
+        expect(paymentService.sendCrypto).not.toHaveBeenCalled();
+        expect(result).toContain('Error: Send command requires amount and recipient address');
+      });
     });
 
     describe('invalid commands', () => {
@@ -209,6 +287,7 @@ describe('WhatsAppWebhookController', () => {
 
         // Assert
         expect(paymentService.createPaymentRequest).not.toHaveBeenCalled();
+        expect(paymentService.sendCrypto).not.toHaveBeenCalled();
         expect(result).toContain('<Response><Message>');
         expect(result).toContain('Error: Unknown command: unknown');
         expect(result).toContain('Available Commands:');
@@ -223,6 +302,8 @@ describe('WhatsAppWebhookController', () => {
         const result = await controller.handleWhatsAppWebhook(webhookDto);
 
         // Assert
+        expect(paymentService.createPaymentRequest).not.toHaveBeenCalled();
+        expect(paymentService.sendCrypto).not.toHaveBeenCalled();
         expect(result).toContain('Error: Unknown command:');
       });
 
@@ -265,7 +346,7 @@ describe('WhatsAppWebhookController', () => {
         const result = await controller.handleWhatsAppWebhook(webhookDto);
 
         // Assert
-        expect(result).toMatch(/^<Response><Message>[\s\S]*<\/Message><\/Response>₿/);
+        expect(result).toMatch(/^<Response><Message>[\s\S]*<\/Message><\/Response>$/);
       });
     });
 

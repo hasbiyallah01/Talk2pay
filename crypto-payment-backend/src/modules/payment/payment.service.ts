@@ -2,9 +2,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PaymentStatus } from '../../common/enums/payment-status.enum';
 import { CryptoType } from '../../common/enums/crypto-type.enum';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { SendCryptoDto } from './dto/send-crypto.dto';
 import { PaymentService as PaymentRepositoryService } from '../../common/services/payment.service';
 import { TransactionService as TransactionRepositoryService } from '../../common/services/transaction.service';
 import { PaymentEntity } from '../../entities/payment.entity';
+import { TransactionEntity } from '../../entities/transaction.entity';
 import { randomUUID } from 'crypto';
 import * as QRCode from 'qrcode';
 
@@ -49,6 +51,46 @@ export class PaymentService {
     await this.transactionRepositoryService.addTransaction(transaction);
 
     return savedPayment;
+  }
+
+  // Create a send transaction for merchant crypto transfers
+  async sendCrypto(
+    merchantId: string,
+    sendCryptoDto: SendCryptoDto,
+  ): Promise<{ payment: PaymentEntity; transaction: TransactionEntity }> {
+    const paymentId = this.generateUniquePaymentId();
+    const completedAt = new Date();
+    const cryptoType = sendCryptoDto.cryptoType ?? CryptoType.BITCOIN;
+
+    const payment = {
+      id: paymentId,
+      merchantId,
+      amount: sendCryptoDto.amount,
+      description: sendCryptoDto.description
+        ? `Send to ${sendCryptoDto.recipientAddress}: ${sendCryptoDto.description}`
+        : `Send to ${sendCryptoDto.recipientAddress}`,
+      status: PaymentStatus.COMPLETED,
+      createdAt: completedAt,
+      completedAt,
+    };
+
+    const savedPayment = await this.paymentRepositoryService.addPayment(payment);
+
+    const transaction = {
+      id: this.transactionRepositoryService.generateTransactionId(),
+      paymentId: savedPayment.id,
+      merchantId: savedPayment.merchantId,
+      amount: savedPayment.amount,
+      cryptoType,
+      recipientAddress: sendCryptoDto.recipientAddress,
+      description: sendCryptoDto.description,
+      status: PaymentStatus.COMPLETED,
+      createdAt: savedPayment.createdAt,
+      completedAt: savedPayment.completedAt,
+    };
+
+    const savedTransaction = await this.transactionRepositoryService.addTransaction(transaction);
+    return { payment: savedPayment, transaction: savedTransaction };
   }
 
   // Retrieve payment details by payment ID

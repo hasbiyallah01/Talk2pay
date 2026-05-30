@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { USSDWebhookController } from './ussd-webhook.controller';
 import { PaymentService } from '../../payment/payment.service';
+import { MerchantService } from '../../merchant/merchant.service';
 import { USSDWebhookDto } from '../dto/ussd-webhook.dto';
 import { PaymentEntity } from '../../../entities/payment.entity';
 import { MerchantEntity } from '../../../entities//merchant.entity';
@@ -10,27 +11,34 @@ import { Logger } from '@nestjs/common';
 describe('USSDWebhookController', () => {
   let controller: USSDWebhookController;
   let paymentService: jest.Mocked<PaymentService>;
+  let merchantService: jest.Mocked<MerchantService>;
 
   const mockPaymentService = {
     createPaymentRequest: jest.fn(),
     generatePaymentLink: jest.fn(),
   };
 
+  const mockMerchantService = {
+    findByPhoneNumber: jest.fn(),
+  };
+
+  const mockMerchant: MerchantEntity = {
+    id: 'test-merchant-id',
+    phoneNumber: '+254712345678',
+    businessName: 'Test Business',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  } as MerchantEntity;
+
   const mockPayment: PaymentEntity = {
     id: 'test-payment-id',
-    merchantId: 'webhook-system',
+    merchantId: 'test-merchant-id',
     amount: 50,
     description: 'USSD Payment from +254712345678',
     status: PaymentStatus.PENDING,
     createdAt: new Date(),
     updatedAt: new Date(),
-    merchant: {
-      id: 'webhook-system',
-      phoneNumber: '+23465789567',
-      businessName: 'Test Business',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    } as MerchantEntity,
+    merchant: mockMerchant,
   };
 
   const createMockWebhookDto = (text: string = ''): USSDWebhookDto => ({
@@ -48,15 +56,21 @@ describe('USSDWebhookController', () => {
           provide: PaymentService,
           useValue: mockPaymentService,
         },
+        {
+          provide: MerchantService,
+          useValue: mockMerchantService,
+        },
       ],
     }).compile();
 
     controller = module.get<USSDWebhookController>(USSDWebhookController);
     paymentService = module.get(PaymentService);
+    merchantService = module.get(MerchantService);
 
     // Mock Logger to avoid console output during tests
     jest.spyOn(Logger.prototype, 'log').mockImplementation();
     jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation();
   });
 
   afterEach(() => {
@@ -105,13 +119,15 @@ describe('USSDWebhookController', () => {
         const webhookDto = createMockWebhookDto('1*50');
         const expectedPaymentLink = 'http://localhost:3000/payment/test-payment-id';
 
+        merchantService.findByPhoneNumber.mockResolvedValue(mockMerchant);
         paymentService.createPaymentRequest.mockResolvedValue(mockPayment);
         paymentService.generatePaymentLink.mockReturnValue(expectedPaymentLink);
 
         const result = await controller.handleUSSDWebhook(webhookDto);
 
+        expect(merchantService.findByPhoneNumber).toHaveBeenCalledWith('+254712345678');
         expect(paymentService.createPaymentRequest).toHaveBeenCalledWith(
-          'webhook-system',
+          'test-merchant-id',
           {
             amount: 50,
             description: 'USSD Payment from +254712345678',
@@ -129,13 +145,14 @@ describe('USSDWebhookController', () => {
         const expectedPaymentLink = 'http://localhost:3000/payment/test-payment-id';
 
         const mockPaymentWithDecimal = { ...mockPayment, amount: 25.50 };
+        merchantService.findByPhoneNumber.mockResolvedValue(mockMerchant);
         paymentService.createPaymentRequest.mockResolvedValue(mockPaymentWithDecimal);
         paymentService.generatePaymentLink.mockReturnValue(expectedPaymentLink);
 
         const result = await controller.handleUSSDWebhook(webhookDto);
 
         expect(paymentService.createPaymentRequest).toHaveBeenCalledWith(
-          'webhook-system',
+          'test-merchant-id',
           {
             amount: 25.50,
             description: 'USSD Payment from +254712345678',
@@ -171,6 +188,18 @@ describe('USSDWebhookController', () => {
         expect(paymentService.createPaymentRequest).not.toHaveBeenCalled();
       });
 
+      it('should handle unregistered phone number', async () => {
+        const webhookDto = createMockWebhookDto('1*50');
+
+        merchantService.findByPhoneNumber.mockResolvedValue(null);
+
+        const result = await controller.handleUSSDWebhook(webhookDto);
+
+        expect(merchantService.findByPhoneNumber).toHaveBeenCalledWith('+254712345678');
+        expect(result).toBe('END Phone number not registered. Please create an account first.');
+        expect(paymentService.createPaymentRequest).not.toHaveBeenCalled();
+      });
+
       it('should handle malformed payment input', async () => {
         const webhookDto = createMockWebhookDto('1*50*extra');
 
@@ -185,6 +214,7 @@ describe('USSDWebhookController', () => {
       it('should handle PaymentService errors gracefully', async () => {
         const webhookDto = createMockWebhookDto('1*50');
 
+        merchantService.findByPhoneNumber.mockResolvedValue(mockMerchant);
         paymentService.createPaymentRequest.mockRejectedValue(new Error('Database connection failed'));
 
         const result = await controller.handleUSSDWebhook(webhookDto);
@@ -192,6 +222,20 @@ describe('USSDWebhookController', () => {
         expect(result).toBe('END Payment creation failed. Please try again later.');
         expect(Logger.prototype.error).toHaveBeenCalledWith(
           'Error creating payment: Database connection failed',
+          expect.any(String)
+        );
+      });
+
+      it('should handle MerchantService errors gracefully', async () => {
+        const webhookDto = createMockWebhookDto('1*50');
+
+        merchantService.findByPhoneNumber.mockRejectedValue(new Error('Database connection failed'));
+
+        const result = await controller.handleUSSDWebhook(webhookDto);
+
+        expect(result).toBe('END Payment creation failed. Please try again later.');
+        expect(Logger.prototype.error).toHaveBeenCalledWith(
+          'Error creating payment: Error resolving merchant for +254712345678: Database connection failed',
           expect.any(String)
         );
       });
@@ -247,6 +291,10 @@ describe('USSDWebhookController', () => {
               provide: PaymentService,
               useValue: mockPaymentService,
             },
+            {
+              provide: MerchantService,
+              useValue: mockMerchantService,
+            },
           ],
         }).compile();
 
@@ -255,6 +303,7 @@ describe('USSDWebhookController', () => {
         const webhookDto = createMockWebhookDto('1*50');
         const expectedPaymentLink = 'https://custom-domain.com/payment/test-payment-id';
 
+        merchantService.findByPhoneNumber.mockResolvedValue(mockMerchant);
         paymentService.createPaymentRequest.mockResolvedValue(mockPayment);
         paymentService.generatePaymentLink.mockReturnValue(expectedPaymentLink);
 

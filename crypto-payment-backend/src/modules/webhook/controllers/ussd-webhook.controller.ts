@@ -1,15 +1,18 @@
 import { Controller, Post, Body, Logger } from '@nestjs/common';
 import { USSDWebhookDto } from '../dto/ussd-webhook.dto';
 import { PaymentService } from '../../payment/payment.service';
+import { MerchantService } from '../../merchant/merchant.service';
 import { CreatePaymentDto } from '../../payment/dto/create-payment.dto';
 
 @Controller('webhooks')
 export class USSDWebhookController {
   private readonly logger = new Logger(USSDWebhookController.name);
-  private readonly defaultMerchantId = 'webhook-system';
   private readonly baseUrl = process.env.BASE_URL || 'http://localhost:3000';
 
-  constructor(private readonly paymentService: PaymentService) {}
+  constructor(
+    private readonly paymentService: PaymentService,
+    private readonly merchantService: MerchantService,
+  ) {}
 
   @Post('ussd')
   async handleUSSDWebhook(@Body() webhookDto: USSDWebhookDto): Promise<string> {
@@ -64,6 +67,12 @@ export class USSDWebhookController {
       if (isNaN(amount) || amount <= 0) {
         return this.formatUSSDContinue(this.getInvalidAmountMessage());
       }
+
+      // Resolve merchant ID from phone number
+      const merchantId = await this.resolveMerchantId(phoneNumber);
+      if (!merchantId) {
+        return this.formatUSSDEnd('Phone number not registered. Please create an account first.');
+      }
       
       // Create payment request
       const createPaymentDto: CreatePaymentDto = {
@@ -72,7 +81,7 @@ export class USSDWebhookController {
       };
       
       const payment = await this.paymentService.createPaymentRequest(
-        this.defaultMerchantId,
+        merchantId,
         createPaymentDto
       );
       
@@ -85,6 +94,24 @@ export class USSDWebhookController {
     } catch (error) {
       this.logger.error(`Error creating payment: ${error.message}`, error.stack);
       return this.formatUSSDEnd('Payment creation failed. Please try again later.');
+    }
+  }
+
+  // Resolve merchant ID from phone number
+  private async resolveMerchantId(phoneNumber: string): Promise<string | null> {
+    try {
+      const merchant = await this.merchantService.findByPhoneNumber(phoneNumber);
+      
+      if (merchant) {
+        this.logger.log(`Resolved USSD sender ${phoneNumber} to merchant ${merchant.id}`);
+        return merchant.id;
+      }
+
+      this.logger.warn(`No merchant found for USSD sender ${phoneNumber}`);
+      return null;
+    } catch (error) {
+      this.logger.error(`Error resolving merchant for ${phoneNumber}: ${error.message}`);
+      return null;
     }
   }
 

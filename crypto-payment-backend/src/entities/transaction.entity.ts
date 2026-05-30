@@ -27,6 +27,9 @@ export class TransactionEntity {
   @Column({ nullable: true })
   description?: string;
 
+  @Column({ nullable: true })
+  recipientAddress?: string;
+
   @Column({
     type: 'enum',
     enum: PaymentStatus,

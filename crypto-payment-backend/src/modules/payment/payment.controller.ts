@@ -23,6 +23,7 @@ import {
 } from '@nestjs/swagger';
 import { PaymentService } from './payment.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { SendCryptoDto } from './dto/send-crypto.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../auth/guards/jwt-auth.guard';
 
@@ -81,6 +82,68 @@ export class PaymentController {
       description: payment.description,
       status: payment.status,
       createdAt: payment.createdAt,
+    };
+  }
+
+  // Send crypto from merchant wallet
+  @Post('send')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ 
+    summary: 'Send crypto',
+    description: 'Creates a send transaction to transfer crypto from the merchant account to a recipient address'
+  })
+  @ApiBody({ type: SendCryptoDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Crypto send transaction created successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        transactionId: { type: 'string', example: 'txn_123abc' },
+        paymentId: { type: 'string', example: 'uuid-payment-id' },
+        merchantId: { type: 'string', example: 'uuid-merchant-id' },
+        amount: { type: 'number', example: 0.5 },
+        cryptoType: { type: 'string', example: 'bitcoin' },
+        recipientAddress: { type: 'string', example: 'bc1qrecipientaddress...' },
+        description: { type: 'string', example: 'Rent payment' },
+        status: { type: 'string', example: 'completed' },
+        createdAt: { type: 'string', format: 'date-time' },
+        completedAt: { type: 'string', format: 'date-time' },
+      }
+    }
+  })
+  @ApiBadRequestResponse({ description: 'Invalid send data' })
+  @ApiUnauthorizedResponse({ description: 'Invalid or missing JWT token' })
+  async sendCrypto(
+    @Request() req: AuthenticatedRequest,
+    @Body(ValidationPipe) sendCryptoDto: SendCryptoDto,
+  ): Promise<{
+    transactionId: string;
+    paymentId: string;
+    merchantId: string;
+    amount: number;
+    cryptoType: string;
+    recipientAddress: string;
+    description?: string;
+    status: string;
+    createdAt: Date;
+    completedAt: Date;
+  }> {
+    const result = await this.paymentService.sendCrypto(req.user.merchantId, sendCryptoDto);
+
+    return {
+      transactionId: result.transaction.id,
+      paymentId: result.payment.id,
+      merchantId: result.payment.merchantId,
+      amount: result.transaction.amount,
+      cryptoType: result.transaction.cryptoType,
+      recipientAddress: result.transaction.recipientAddress!,
+      description: result.transaction.description,
+      status: result.transaction.status,
+      createdAt: result.transaction.createdAt,
+      completedAt: result.transaction.completedAt!,
     };
   }
 

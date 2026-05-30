@@ -12,8 +12,9 @@ export interface Merchant {
   id: string;
   phoneNumber: string | null;
   isPhoneVerified: boolean;
-  passwordHash: string;
-  businessName: string;
+  firstName: string;
+  walletPin?: string;
+  walletBalance: number;
   cryptoPreferences: CryptoType[];
   createdAt: Date;
   updatedAt: Date;
@@ -29,7 +30,7 @@ export class MerchantService {
   ) {}
 
   // Retrieve merchant profile by ID
-  async getProfile(merchantId: string): Promise<Omit<Merchant, 'passwordHash'>> {
+  async getProfile(merchantId: string): Promise<Merchant> {
     const merchant = await this.merchantRepository.findOne({
       where: { id: merchantId }
     });
@@ -38,16 +39,14 @@ export class MerchantService {
       throw new NotFoundException(`Merchant with ID ${merchantId} not found`);
     }
 
-    // Return merchant profile without password hash for security
-    const { passwordHash, ...merchantProfile } = merchant;
-    return merchantProfile;
+    return merchant;
   }
 
   // Update merchant's crypto preferences
   async updateCryptoPreferences(
     merchantId: string,
     updateDto: UpdateCryptoPreferencesDto,
-  ): Promise<Omit<Merchant, 'passwordHash'>> {
+  ): Promise<Merchant> {
     const merchant = await this.merchantRepository.findOne({
       where: { id: merchantId }
     });
@@ -66,15 +65,16 @@ export class MerchantService {
     // Save updated merchant
     const updatedMerchant = await this.merchantRepository.save(merchant);
 
-    // Return updated profile without password hash
-    const { passwordHash, ...merchantProfile } = updatedMerchant;
-    return merchantProfile;
+    return updatedMerchant;
   }
 
   // Create or update merchant (used by auth service)
   async createOrUpdateMerchant(merchant: Merchant): Promise<Merchant> {
+    console.log('Creating/updating merchant:', merchant);
     const merchantEntity = this.merchantRepository.create(merchant);
+    console.log('Created entity:', merchantEntity);
     const savedMerchant = await this.merchantRepository.save(merchantEntity);
+    console.log('Saved merchant:', savedMerchant);
     return savedMerchant;
   }
 
