@@ -25,7 +25,7 @@ describe('USSDWebhookController', () => {
   const mockMerchant: MerchantEntity = {
     id: 'test-merchant-id',
     phoneNumber: '+254712345678',
-    businessName: 'Test Business',
+    firstName: 'Test Name',
     createdAt: new Date(),
     updatedAt: new Date(),
   } as MerchantEntity;

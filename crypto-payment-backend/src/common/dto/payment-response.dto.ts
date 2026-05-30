@@ -10,5 +10,5 @@ export class PaymentResponseDto {
 }
 
 export class PaymentDetailsResponseDto extends PaymentResponseDto {
-  merchantBusinessName: string;
+  merchantfirstName: string;
 }

@@ -4,7 +4,7 @@ export class MerchantProfileResponseDto {
   id: string;
   phoneNumber: string;
   isPhoneVerified: boolean;
-  businessName: string;
+  firstName: string;
   walletBalance: number;
   cryptoPreferences: CryptoType[];
   createdAt: Date;
