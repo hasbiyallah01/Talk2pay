@@ -151,6 +151,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             );
           })}
 
+          <div className="px- pb-3">
+          <Link
+            href="/dashboard/scan"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-slate-500 hover:bg-slate-50 hover:text-[#2D7A4F]"
+          >
+            <QRScanIcon />
+            <span>Scan QR Code</span>
+          </Link>
+        </div>
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-red-600 hover:bg-red-50 cursor-pointer mt-4"
@@ -165,23 +174,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         {/* Desktop: QR Scan button */}
-        <div className="px-4 pb-3">
-          <Link
-            href="/dashboard/receive"
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-slate-500 hover:bg-slate-50 hover:text-[#2D7A4F]"
-          >
-            <QRScanIcon />
-            <span>Scan QR Code</span>
-          </Link>
-        </div>
+        
 
-        {/* Bottom badge */}
-        <div className="px-4 pb-6">
-          <div className="rounded-2xl p-4" style={{ background: 'linear-gradient(135deg, #2D7A4F, #1a5c38)' }}>
-            <p className="text-white text-xs font-semibold mb-1">⚡ Lightning Ready</p>
-            <p className="text-white/70 text-xs">Instant cross-border payments</p>
-          </div>
-        </div>
+       
       </aside>
 
       {/* ── Main content area ───────────────────────────── */}
