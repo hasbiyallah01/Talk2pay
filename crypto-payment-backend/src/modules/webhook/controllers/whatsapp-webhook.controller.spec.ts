@@ -23,7 +23,7 @@ describe('WhatsAppWebhookController', () => {
     merchant: {
       id: 'webhook-system',
       phoneNumber: '+23465789567',
-      businessName: 'Test Business',
+      firstName: 'Test Name',
       createdAt: new Date(),
       updatedAt: new Date(),
     } as MerchantEntity,
@@ -47,7 +47,7 @@ describe('WhatsAppWebhookController', () => {
       findByPhoneNumber: jest.fn().mockResolvedValue({
         id: 'webhook-system',
         phoneNumber: '+23465789567',
-        businessName: 'Test Business',
+        firstName: 'Test Business',
         createdAt: new Date(),
         updatedAt: new Date(),
       }),

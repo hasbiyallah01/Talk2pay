@@ -13,9 +13,6 @@ WHERE firstName IS NULL;
 -- Step 3: Make firstName NOT NULL after updating existing records
 ALTER TABLE merchants ALTER COLUMN firstName SET NOT NULL;
 
--- Step 4: Drop businessName column if it exists
-ALTER TABLE merchants DROP COLUMN IF EXISTS businessName;
-
 -- Step 5: Drop passwordHash column if it exists  
 ALTER TABLE merchants DROP COLUMN IF EXISTS passwordHash;
 

@@ -136,10 +136,10 @@ The Swagger UI exposes interactive docs for all endpoints, schemas, request bodi
 
 - `POST /auth/register`
   - Register a new merchant account
-  - Body: `phoneNumber`, `password`, `businessName`
+  - Body: `phoneNumber`,otp
 - `POST /auth/login`
   - Authenticate merchant
-  - Body: `phoneNumber`, `password`
+  - Body: `phoneNumber`,otp
   - Returns: JWT token and merchant profile
 - `POST /auth/send-otp`
   - Send verification OTP to the authenticated merchant phone number
@@ -203,7 +203,7 @@ curl -X POST http://localhost:3000/auth/register \
   -d '{
     "phoneNumber": "+2348012345678",
     "password": "securePassword123",
-    "businessName": "My Coffee Shop"
+    "firstName": "My Coffee Shop"
   }'
 ```
 

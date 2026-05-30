@@ -49,7 +49,7 @@ export class MerchantController {
             id: { type: 'string', example: 'uuid-merchant-id' },
             phoneNumber: { type: 'string', example: '+2348012345678' },
             isPhoneVerified: { type: 'boolean', example: false },
-            businessName: { type: 'string', example: 'My Coffee Shop' },
+            firstName: { type: 'string', example: 'Meeee' },
             cryptoPreferences: { 
               type: 'array', 
               items: { type: 'string', enum: ['bitcoin', 'lightning', 'ecash'] },
