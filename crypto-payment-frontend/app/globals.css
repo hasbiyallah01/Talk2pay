@@ -1,0 +1,237 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+
+
+:root {
+  --green: #2D7A4F;
+  --green-light: #3a9b63;
+  --green-dark: #1f5c3a;
+  --black: #0a0a0a;
+  --white: #fafafa;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #fafafa;
+  color: #111827;
+  font-family: 'Manrope', sans-serif;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+.font-candal {
+  font-family: 'PPNeueMontreal', sans-serif;
+}
+
+.font-neue {
+  font-family: 'Manrope', sans-serif;
+}
+
+/* Custom cursor */
+.cursor-dot {
+  position: fixed;
+  width: 8px;
+  height: 8px;
+  background: #2D7A4F;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.cursor-ring {
+  position: fixed;
+  width: 32px;
+  height: 32px;
+  border: 1.5px solid rgba(45, 122, 79, 0.6);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9998;
+  transition: width 0.2s ease, height 0.2s ease, border-color 0.2s ease;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(45, 122, 79, 0.4);
+  border-radius: 2px;
+}
+
+/* Marquee */
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes marquee-reverse {
+  0% {
+    transform: translateX(-50%);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.marquee-track {
+  animation: marquee 25s linear infinite;
+  display: flex;
+  gap: 16px;
+  width: max-content;
+}
+
+.marquee-track-reverse {
+  animation: marquee-reverse 30s linear infinite;
+  display: flex;
+  gap: 16px;
+  width: max-content;
+}
+
+/* Floating */
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+
+  33% {
+    transform: translateY(-12px) rotate(0.5deg);
+  }
+
+  66% {
+    transform: translateY(-6px) rotate(-0.5deg);
+  }
+}
+
+.float-animation {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float-slow {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.float-slow {
+  animation: float-slow 8s ease-in-out infinite;
+}
+
+/* Typing dots */
+@keyframes typing-dot {
+
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+
+  30% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.typing-dot:nth-child(1) {
+  animation: typing-dot 1.2s ease-in-out infinite 0s;
+}
+
+.typing-dot:nth-child(2) {
+  animation: typing-dot 1.2s ease-in-out infinite 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation: typing-dot 1.2s ease-in-out infinite 0.4s;
+}
+
+/* ───────────────────────────────────────────────────────── */
+/* Global High Contrast Accessibility Overrides              */
+/* ───────────────────────────────────────────────────────── */
+body.high-contrast {
+  background: #ffffff !important;
+  color: #000000 !important;
+  filter: contrast(1.25);
+}
+
+body.high-contrast *,
+body.high-contrast *::before,
+body.high-contrast *::after {
+  text-shadow: none !important;
+}
+
+body.high-contrast .bg-white,
+body.high-contrast .bg-slate-50,
+body.high-contrast .bg-slate-100,
+body.high-contrast .bg-\[\#f5f7f5\] {
+  background-color: #ffffff !important;
+}
+
+body.high-contrast .border-slate-100,
+body.high-contrast .border-slate-200,
+body.high-contrast .border-slate-300,
+body.high-contrast .border-slate-50,
+body.high-contrast .border {
+  border-color: #000000 !important;
+  border-width: 1.5px !important;
+}
+
+body.high-contrast .text-slate-400,
+body.high-contrast .text-slate-500,
+body.high-contrast .text-slate-600 {
+  color: #1a1a1a !important;
+}
+
+body.high-contrast .text-slate-700,
+body.high-contrast .text-slate-800,
+body.high-contrast .text-slate-900 {
+  color: #000000 !important;
+  font-weight: 600 !important;
+}
+
+body.high-contrast .text-green-700,
+body.high-contrast .text-\[\#2D7A4F\] {
+  color: #004d00 !important;
+  font-weight: 700 !important;
+}
+
+body.high-contrast .bg-green-50,
+body.high-contrast .bg-\[\#2D7A4F\],
+body.high-contrast .bg-\[\#1a5c38\] {
+  background-color: #004d00 !important;
+  color: #ffffff !important;
+}
+
+body.high-contrast .bg-green-50 * {
+  color: #ffffff !important;
+}
