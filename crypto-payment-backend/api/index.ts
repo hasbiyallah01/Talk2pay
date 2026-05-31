@@ -13,18 +13,8 @@ async function createApp() {
   if (!app) {
     app = await NestFactory.create(AppModule);
     
-    // Security middleware - Helmet for security headers with relaxed CSP for Swagger
-    app.use(helmet({
-      ...SecurityConfig.helmet,
-      contentSecurityPolicy: {
-        directives: {
-          ...SecurityConfig.helmet.contentSecurityPolicy.directives,
-          scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
-          styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
-          connectSrc: ["'self'", "https://cdnjs.cloudflare.com"],
-        },
-      },
-    }));
+    // Security middleware - Helmet for security headers
+    app.use(helmet(SecurityConfig.helmet));
     
     // CORS configuration
     app.use(cors(SecurityConfig.cors));
@@ -58,18 +48,10 @@ async function createApp() {
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('docs', app, document, {
+    SwaggerModule.setup('api', app, document, {
       swaggerOptions: {
         persistAuthorization: true,
       },
-      customSiteTitle: 'Crypto Payment API Documentation',
-      customJs: [
-        'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.min.js',
-        'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-standalone-preset.min.js',
-      ],
-      customCssUrl: [
-        'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css',
-      ],
     });
     
     await app.init();
