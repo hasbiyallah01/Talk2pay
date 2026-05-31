@@ -25,8 +25,8 @@ async function bootstrap() {
   // Global exception filter
   app.useGlobalFilters(new GlobalExceptionFilter());
   
-  // Swagger/OpenAPI configuration - Always enable for now
-  const swaggerConfig = new DocumentBuilder()
+  // Swagger/OpenAPI configuration
+  const config = new DocumentBuilder()
     .setTitle('Crypto Payment Backend API')
     .setDescription('A minimal backend API for merchant-first crypto payment toolkit. Enables small business owners to accept crypto payments through QR codes and payment links, track transactions, and export records.')
     .setVersion('1.0')
@@ -47,19 +47,12 @@ async function bootstrap() {
     .addTag('transaction', 'Transaction tracking endpoints')
     .build();
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
-      displayRequestDuration: true,
-      docExpansion: 'none',
-      filter: true,
-      showRequestHeaders: true,
     },
-    customSiteTitle: 'Crypto Payment API Documentation',
   });
-  
-  console.log('Swagger UI available at /api');
   
   await app.listen(process.env.PORT ?? 3000);
 }
