@@ -51,7 +51,12 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
+      displayRequestDuration: true,
+      docExpansion: 'none',
+      filter: true,
+      showRequestHeaders: true,
     },
+    customSiteTitle: 'Crypto Payment API Documentation',
   });
   
   console.log('Swagger UI available at /api');
