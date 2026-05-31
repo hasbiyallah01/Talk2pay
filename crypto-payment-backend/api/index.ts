@@ -55,21 +55,36 @@ async function createApp() {
       .addTag('merchant', 'Merchant management endpoints')
       .addTag('payment', 'Payment request endpoints')
       .addTag('transaction', 'Transaction tracking endpoints')
+      .addTag('health', 'Health check endpoints')
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
+    
+    // Setup Swagger with minimal external dependencies for Vercel compatibility
     SwaggerModule.setup('docs', app, document, {
       swaggerOptions: {
         persistAuthorization: true,
+        displayRequestDuration: true,
+        docExpansion: 'none',
+        filter: true,
+        showRequestHeaders: true,
+        tryItOutEnabled: true,
       },
       customSiteTitle: 'Crypto Payment API Documentation',
+      customfavIcon: '/favicon.ico',
+      // Use CDN that works better with Vercel
       customJs: [
-        'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.min.js',
-        'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-standalone-preset.min.js',
+        'https://unpkg.com/swagger-ui-dist@4.15.5/swagger-ui-bundle.js',
       ],
       customCssUrl: [
-        'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css',
+        'https://unpkg.com/swagger-ui-dist@4.15.5/swagger-ui.css',
       ],
+    });
+
+    // Also setup a JSON endpoint for the OpenAPI spec
+    SwaggerModule.setup('api-json', app, document, {
+      jsonDocumentUrl: 'api-json',
+      yamlDocumentUrl: 'api-yaml',
     });
     
     await app.init();
@@ -78,6 +93,21 @@ async function createApp() {
 }
 
 export default async function handler(req: any, res: any) {
-  const app = await createApp();
-  return app.getHttpAdapter().getInstance()(req, res);
+  try {
+    const app = await createApp();
+    
+    // Add some debugging for the docs route
+    if (req.url === '/docs' || req.url === '/docs/') {
+      console.log('Docs route accessed:', req.url);
+    }
+    
+    return app.getHttpAdapter().getInstance()(req, res);
+  } catch (error) {
+    console.error('Handler error:', error);
+    res.status(500).json({ 
+      error: 'Internal Server Error', 
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 }
