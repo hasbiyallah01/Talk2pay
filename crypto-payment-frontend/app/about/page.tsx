@@ -109,7 +109,7 @@ export default function About() {
             transition={{ delay: 0.3, duration: 0.8 }}
             className="font-neue text-black/50 text-base md:text-lg leading-relaxed max-w-2xl mx-auto"
           >
-            Access to financial services is a fundamental human right. Trust2Pay removes every technical, structural, and language barrier — enabling instant payments for anyone, anywhere, using only their voice.
+            Access to financial services is a fundamental human right. Talk2Pay removes every technical, structural, and language barrier — enabling instant payments for anyone, anywhere, using only their voice.
           </motion.p>
         </div>
       </section>
@@ -137,7 +137,7 @@ export default function About() {
       <section className="py-24 px-6 md:px-16 max-w-6xl mx-auto">
         <div className="text-center mb-16">
           <p className="font-neue text-[#2D7A4F] text-xs tracking-[0.3em] uppercase mb-4">THE TRANSACTION LOOP</p>
-          <h2 className="font-candal text-black text-3xl md:text-5xl mb-6">How Trust2Pay Works</h2>
+          <h2 className="font-candal text-black text-3xl md:text-5xl mb-6">How Talk2Pay Works</h2>
           <p className="font-neue text-black/50 text-sm md:text-base max-w-xl mx-auto leading-relaxed">
             We translate the complexity of decentralized finance into intuitive voice interactions.
           </p>
@@ -194,7 +194,7 @@ export default function About() {
                 <span className="text-[#2D7A4F] font-candal text-xs tracking-wider uppercase block mb-2">WHATSAPP AGENT</span>
                 <h3 className="text-2xl md:text-3xl font-candal text-black mb-4">Social Chat Transactions</h3>
                 <p className="text-black/50 text-sm leading-relaxed mb-4">
-                  Send funds, settle checks, and convert currencies instantly on your favorite chat app. Simply trigger our verified Trust2Pay AI bot, state your instruction, confirm, and verify the successful transaction response.
+                  Send funds, settle checks, and convert currencies instantly on your favorite chat app. Simply trigger our verified Talk2Pay AI bot, state your instruction, confirm, and verify the successful transaction response.
                 </p>
               </div>
 
@@ -205,7 +205,7 @@ export default function About() {
                     <span className="text-white text-xs font-bold font-candal">T2</span>
                   </div>
                   <div>
-                    <p className="text-white text-sm font-semibold">Trust2Pay AI Agent</p>
+                    <p className="text-white text-sm font-semibold">Talk2Pay AI Agent</p>
                     <p className="text-white/60 text-[10px] flex items-center gap-1">
                       <span className="w-1.5 h-1.5 bg-[#25D366] rounded-full inline-block"></span> Online
                     </p>
@@ -273,7 +273,7 @@ export default function About() {
                 {/* Screen */}
                 <div className="w-full bg-[#f0f4f0] rounded-xl border-4 border-[#222] p-4 flex flex-col min-h-[220px]" style={{ fontFamily: 'monospace' }}>
                   <div className="text-[11px] text-[#2b3e34] font-bold border-b border-[#2b3e34]/20 pb-1 mb-2">
-                    TRUST2PAY MOBILE v2.1
+                    TALK2PAY MOBILE v2.1
                   </div>
                   <div className="text-xs text-[#2b3e34] font-medium leading-relaxed mb-4 flex-1">
                     Welcome back David.<br />
@@ -315,7 +315,7 @@ export default function About() {
             <span className="text-[#2D7A4F] font-candal text-xs tracking-wider uppercase block mb-2">OUR VALUES</span>
             <h2 className="font-candal text-black text-3xl md:text-5xl mb-6">Designed For Every Human</h2>
             <p className="font-neue text-black/50 text-sm md:text-base leading-relaxed mb-8">
-              We built our software around real human barriers. Trust2Pay adapts to your conditions, rather than forcing you to learn complex technology.
+              We built our software around real human barriers. Talk2Pay adapts to your conditions, rather than forcing you to learn complex technology.
             </p>
             
             <div className="flex flex-col gap-6">

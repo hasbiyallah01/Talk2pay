@@ -30,6 +30,12 @@ export class TransactionEntity {
   @Column({ nullable: true })
   recipientAddress?: string;
 
+  @Column({ nullable: true })
+  senderAddress?: string;
+
+  @Column({ type: 'varchar', default: 'debit', nullable: true })
+  type?: string; // 'debit' = money sent out, 'credit' = money received
+
   @Column({
     type: 'enum',
     enum: PaymentStatus,

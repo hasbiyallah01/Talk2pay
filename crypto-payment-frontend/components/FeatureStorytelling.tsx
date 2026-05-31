@@ -8,7 +8,7 @@ const features = [
     id: 'voice' as const,
     tag: 'BUILT FOR EVERYONE',
     title: 'VOICE AUTOMATION',
-    body: 'Speak naturally in any language. Trust2Pay understands your intent, confirms the transaction, and executes instantly — no forms, no friction, just conversation.',
+    body: 'Speak naturally in any language. Talk2Pay understands your intent, confirms the transaction, and executes instantly — no forms, no friction, just conversation.',
   },
   {
     id: 'scan' as const,
@@ -20,13 +20,13 @@ const features = [
     id: 'whatsapp' as const,
     tag: 'FAMILIAR INTERFACE',
     title: 'WHATSAPP INTEGRATION',
-    body: 'Your most-used app becomes your wallet. Type naturally in WhatsApp and Trust2Pay AI parses intent, verifies identity, and completes the transfer.',
+    body: 'Your most-used app becomes your wallet. Type naturally in WhatsApp and Talk2Pay AI parses intent, verifies identity, and completes the transfer.',
   },
   {
     id: 'language' as const,
     tag: 'TRULY INCLUSIVE',
     title: 'ANY LANGUAGE',
-    body: 'Hausa, Yoruba, Igbo, Pidgin, English — Trust2Pay speaks every tongue. Financial access should never be blocked by the language you were born into.',
+    body: 'Hausa, Yoruba, Igbo, Pidgin, English — Talk2Pay speaks every tongue. Financial access should never be blocked by the language you were born into.',
   },
   {
     id: 'accessibility' as const,

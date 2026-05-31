@@ -170,7 +170,7 @@ export default function WhiteTransitionSection() {
           >
             Just speak naturally.
             <br />
-            Trust2Pay handles complexity.
+            Talk2Pay handles complexity.
           </p>
 
           <Link href="/auth/signup">

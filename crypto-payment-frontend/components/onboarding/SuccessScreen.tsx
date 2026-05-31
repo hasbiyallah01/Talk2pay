@@ -86,7 +86,10 @@ export default function SuccessScreen() {
 
         <motion.button
           className="btn-primary"
-          onClick={() => router.push('/dashboard')}
+          onClick={() => {
+            localStorage.setItem('t2p_onboarding_completed', 'true');
+            router.push('/dashboard');
+          }}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.1, duration: 0.4 }}

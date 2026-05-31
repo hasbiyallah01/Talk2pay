@@ -7,10 +7,10 @@ import FeatureStorytelling from './FeatureStorytelling';
 
 /* ─── Feature list ─────────────────────────────────────── */
 const features = [
-  { id: 'voice' as const, tag: 'BUILT FOR EVERYONE', title: 'VOICE AUTOMATION', body: 'Speak naturally in any language. Trust2Pay understands your intent, confirms the transaction, and executes instantly — no forms, no friction, just conversation.' },
+  { id: 'voice' as const, tag: 'BUILT FOR EVERYONE', title: 'VOICE AUTOMATION', body: 'Speak naturally in any language. Talk2Pay understands your intent, confirms the transaction, and executes instantly — no forms, no friction, just conversation.' },
   { id: 'scan' as const, tag: 'SEAMLESS', title: 'SCAN ANYWHERE ANYTIME', body: 'Point your camera at any QR code — merchant, personal, or system-generated. Payment initiates in under a second. No app switching required.' },
-  { id: 'whatsapp' as const, tag: 'FAMILIAR INTERFACE', title: 'WHATSAPP INTEGRATION', body: 'Your most-used app becomes your wallet. Type naturally in WhatsApp and Trust2Pay AI parses intent, verifies identity, and completes the transfer.' },
-  { id: 'language' as const, tag: 'TRULY INCLUSIVE', title: 'ANY LANGUAGE', body: 'Hausa, Yoruba, Igbo, Pidgin, English — Trust2Pay speaks every tongue. Financial access should never be blocked by the language you were born into.' },
+  { id: 'whatsapp' as const, tag: 'FAMILIAR INTERFACE', title: 'WHATSAPP INTEGRATION', body: 'Your most-used app becomes your wallet. Type naturally in WhatsApp and Talk2Pay AI parses intent, verifies identity, and completes the transfer.' },
+  { id: 'language' as const, tag: 'TRULY INCLUSIVE', title: 'ANY LANGUAGE', body: 'Hausa, Yoruba, Igbo, Pidgin, English — Talk2Pay speaks every tongue. Financial access should never be blocked by the language you were born into.' },
   { id: 'accessibility' as const, tag: 'EVERYONE BELONGS', title: 'ACCESSIBILITY FIRST', body: 'Full screen reader support, voice navigation, high contrast modes, and large text. Finance designed for every human, regardless of ability.' },
   { id: 'payment' as const, tag: 'REAL-TIME', title: 'INSTANT PAYMENTS', body: 'Transactions that close before the conversation ends. Sub-second settlement across banks, wallets, and payment rails — powered by AI orchestration.' },
   { id: 'ussd' as const, tag: 'NO SMARTPHONE NEEDED', title: 'FEATURE PHONE SUPPORT', body: 'Dial *347# from any phone. No internet. No app. Full banking power through USSD — reaching the 200M+ users still on 2G networks.' },
@@ -56,7 +56,7 @@ function Dashboard({ highlight }: { highlight: FeatureId }) {
 
       <div className="px-3 pb-1 flex items-center justify-between shrink-0">
         <div>
-          <p className="text-black/35 text-[7px] font-medium tracking-wider">TRUST2PAY</p>
+          <p className="text-black/35 text-[7px] font-medium tracking-wider">TALK2PAY</p>
           <p className="text-black text-[11px] font-bold leading-tight">Good morning, David</p>
         </div>
         <div className="w-7 h-7 rounded-full bg-[#2D7A4F] flex items-center justify-center shrink-0">

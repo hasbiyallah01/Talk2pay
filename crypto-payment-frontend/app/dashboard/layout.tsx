@@ -1,9 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { T } from '@/components/onboarding/T';
+import { useTranslation } from '@/components/onboarding/useTranslation';
 
+// ─── Nav Items ────────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
   {
     href: '/dashboard',
@@ -79,19 +82,13 @@ const NAV_ITEMS = [
   },
 ];
 
-// QR Scanner icon component
 function QRScanIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-      {/* Top-left corner */}
       <path d="M3 9V5a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      {/* Top-right corner */}
       <path d="M15 3h4a2 2 0 0 1 2 2v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      {/* Bottom-right corner */}
       <path d="M21 15v4a2 2 0 0 1-2 2h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      {/* Bottom-left corner */}
       <path d="M9 21H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      {/* Inner QR squares */}
       <rect x="7" y="7" width="4" height="4" rx="0.5" stroke="currentColor" strokeWidth="1.5" />
       <rect x="13" y="7" width="4" height="4" rx="0.5" stroke="currentColor" strokeWidth="1.5" />
       <rect x="7" y="13" width="4" height="4" rx="0.5" stroke="currentColor" strokeWidth="1.5" />
@@ -102,8 +99,44 @@ function QRScanIcon() {
   );
 }
 
+// ─── Voice Status Type ────────────────────────────────────────────────────────
+type VoiceStatus = 'idle' | 'listening' | 'processing' | 'done' | 'error';
+
+// ─── Screen Reader TTS helper ─────────────────────────────────────────────────
+function speak(text: string) {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'en-NG';
+  utterance.rate = 1.05;
+  window.speechSynthesis.speak(utterance);
+}
+
+// ─── Page label map for screen reader ────────────────────────────────────────
+const PAGE_LABELS: Record<string, string> = {
+  '/dashboard': 'Home Dashboard',
+  '/dashboard/send': 'Send Money',
+  '/dashboard/receive': 'Receive Money',
+  '/dashboard/history': 'Transaction History',
+  '/dashboard/cards': 'Savings',
+  '/dashboard/settings': 'Settings',
+  '/dashboard/voice': 'Voice Payment',
+  '/dashboard/scan': 'QR Code Scanner',
+};
+
+// ─── Main Layout ──────────────────────────────────────────────────────────────
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { accessibility } = useTranslation();
+
+  // Voice assistant state
+  const recognitionRef = useRef<any>(null);
+  const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>('idle');
+  const [popupVisible, setPopupVisible] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState('');
+  const [finalTranscript, setFinalTranscript] = useState('');
+  const [voiceResponse, setVoiceResponse] = useState('');
 
   const isActive = (href: string) =>
     href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href);
@@ -113,8 +146,162 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     window.location.href = '/';
   };
 
-  // Only show the mobile top bar on the main dashboard home
-  const isHome = pathname === '/dashboard';
+  // ── Screen reader: announce page changes ─────────────────────────────────
+  useEffect(() => {
+    if (!accessibility.screenReader) return;
+    const label = PAGE_LABELS[pathname] || 'Dashboard';
+    speak(`Opened ${label}`);
+  }, [pathname, accessibility.screenReader]);
+
+  // ── Haptic feedback: vibrate on every interactive click ──────────────────
+  useEffect(() => {
+    if (!accessibility.hapticFeedback) return;
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const interactive = target.closest('button, a, [role="button"], [role="switch"]');
+      if (interactive && 'vibrate' in navigator) {
+        navigator.vibrate(30);
+      }
+    };
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [accessibility.hapticFeedback]);
+
+  // ── Voice command processor ───────────────────────────────────────────────
+  const processVoiceCommand = useCallback((text: string): string => {
+    const stored = JSON.parse(localStorage.getItem('trust2pay_user') || '{}');
+    const bal = stored.balance ?? 0;
+
+    if (text.includes('balance')) {
+      const msg = `Your current balance is ₦${bal.toLocaleString()}.`;
+      if (accessibility.screenReader) speak(msg);
+      return msg;
+    } else if (text.includes('send')) {
+      setTimeout(() => router.push('/dashboard/send'), 1800);
+      const msg = 'Taking you to Send Money now...';
+      if (accessibility.screenReader) speak(msg);
+      return msg;
+    } else if (text.includes('receive') || text.includes('request')) {
+      setTimeout(() => router.push('/dashboard/receive'), 1800);
+      const msg = 'Opening Receive Money...';
+      if (accessibility.screenReader) speak(msg);
+      return msg;
+    } else if (text.includes('history') || text.includes('transaction') || text.includes('spent')) {
+      setTimeout(() => router.push('/dashboard/history'), 1800);
+      const msg = 'Opening your transaction history...';
+      if (accessibility.screenReader) speak(msg);
+      return msg;
+    } else if (text.includes('save') || text.includes('saving')) {
+      setTimeout(() => router.push('/dashboard/cards'), 1800);
+      const msg = 'Opening your Savings goals...';
+      if (accessibility.screenReader) speak(msg);
+      return msg;
+    } else if (text.includes('scan') || text.includes('qr')) {
+      setTimeout(() => router.push('/dashboard/scan'), 1800);
+      const msg = 'Opening QR scanner...';
+      if (accessibility.screenReader) speak(msg);
+      return msg;
+    } else if (text.includes('setting')) {
+      setTimeout(() => router.push('/dashboard/settings'), 1800);
+      const msg = 'Opening Settings...';
+      if (accessibility.screenReader) speak(msg);
+      return msg;
+    } else if (text.includes('home') || text.includes('dashboard')) {
+      setTimeout(() => router.push('/dashboard'), 1500);
+      const msg = 'Taking you to the home dashboard...';
+      if (accessibility.screenReader) speak(msg);
+      return msg;
+    } else {
+      const msg = `I heard: "${text}". Try: "check balance", "send money", "transaction history", or "savings".`;
+      if (accessibility.screenReader) speak(msg);
+      return msg;
+    }
+  }, [router, accessibility.screenReader]);
+
+  // ── Process final transcript ─────────────────────────────────────────────
+  useEffect(() => {
+    if (!finalTranscript) return;
+    setVoiceStatus('processing');
+    const t = setTimeout(() => {
+      setVoiceResponse(processVoiceCommand(finalTranscript));
+      setVoiceStatus('done');
+    }, 900);
+    return () => clearTimeout(t);
+  }, [finalTranscript, processVoiceCommand]);
+
+  // ── Start listening ──────────────────────────────────────────────────────
+  const startListening = useCallback(() => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      setVoiceStatus('error');
+      setVoiceResponse('Voice recognition requires Chrome browser. Please try it there.');
+      setPopupVisible(true);
+      return;
+    }
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SR();
+    recognitionRef.current = recognition;
+    recognition.lang = 'en-NG';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    setVoiceStatus('listening');
+    setLiveTranscript('');
+    setFinalTranscript('');
+    setVoiceResponse('');
+    setPopupVisible(true);
+
+    recognition.onresult = (e: any) => {
+      let interim = '';
+      let final = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) final += t;
+        else interim += t;
+      }
+      setLiveTranscript(interim || final);
+      if (final) {
+        setFinalTranscript(final.toLowerCase());
+        setLiveTranscript('');
+      }
+    };
+    recognition.onerror = () => {
+      setVoiceStatus('error');
+      setVoiceResponse('Could not hear you. Please try again.');
+      setLiveTranscript('');
+    };
+    recognition.onend = () => { recognitionRef.current = null; };
+    recognition.start();
+  }, []);
+
+  const stopListening = useCallback(() => {
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    setVoiceStatus('idle');
+  }, []);
+
+  const closeVoicePopup = useCallback(() => {
+    stopListening();
+    setPopupVisible(false);
+    setLiveTranscript('');
+    setFinalTranscript('');
+    setVoiceResponse('');
+    setVoiceStatus('idle');
+  }, [stopListening]);
+
+  const speakAgain = useCallback(() => {
+    closeVoicePopup();
+    setTimeout(startListening, 350);
+  }, [closeVoicePopup, startListening]);
+
+  // ── Listen for global 't2p-trigger-voice' custom event ──────────────────
+  useEffect(() => {
+    const handler = () => {
+      if (voiceStatus === 'listening') stopListening();
+      else startListening();
+    };
+    window.addEventListener('t2p-trigger-voice', handler);
+    return () => window.removeEventListener('t2p-trigger-voice', handler);
+  }, [voiceStatus, startListening, stopListening]);
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -152,14 +339,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
 
           <div className="px- pb-3">
-          <Link
-            href="/dashboard/scan"
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-slate-500 hover:bg-slate-50 hover:text-[#2D7A4F]"
-          >
-            <QRScanIcon />
-            <span>Scan QR Code</span>
-          </Link>
-        </div>
+            <Link
+              href="/dashboard/scan"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-slate-500 hover:bg-slate-50 hover:text-[#2D7A4F]"
+            >
+              <QRScanIcon />
+              <span><T text="Scan QR Code" /></span>
+            </Link>
+          </div>
+
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-red-600 hover:bg-red-50 cursor-pointer mt-4"
@@ -172,18 +360,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <T text="Logout" />
           </button>
         </nav>
-
-        {/* Desktop: QR Scan button */}
-        
-
-       
       </aside>
 
       {/* ── Main content area ───────────────────────────── */}
       <div className="flex-1 flex flex-col lg:ml-64">
-
-      
-
         {/* Page content */}
         <main className="flex-1 overflow-auto pb-24 lg:pb-8">
           <div className="w-full max-w-7xl mx-auto">
@@ -191,29 +371,167 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </main>
 
-        {/* ── Bottom Nav (mobile only) ─────────────────── */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-slate-100 shadow-lg">
-          <div className="flex items-center justify-around px-1 py-2">
-            {NAV_ITEMS.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all"
-                >
-                  {item.icon(active)}
-                  <span
-                    className="text-[10px] font-medium"
-                    style={{ color: active ? '#2D7A4F' : '#94a3b8' }}
-                  >
-                    <T text={item.label} />
-                  </span>
-                </Link>
-              );
-            })}
+        
+      </div>
+
+      {/* ── Global Floating Voice Button (when voiceMode is ON) ──────────── */}
+      {accessibility.voiceMode && (
+        <button
+          onClick={() => voiceStatus === 'listening' ? stopListening() : startListening()}
+          aria-label="Voice Assistant"
+          className="fixed bottom-24 right-5 lg:bottom-8 z-40 w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all duration-200 active:scale-95"
+          style={{
+            background: voiceStatus === 'listening'
+              ? 'rgba(45,122,79,0.15)'
+              : '#2D7A4F',
+            border: voiceStatus === 'listening' ? '2.5px solid #2D7A4F' : 'none',
+            boxShadow: voiceStatus === 'listening'
+              ? '0 0 0 8px rgba(45,122,79,0.12), 0 8px 24px rgba(45,122,79,0.3)'
+              : '0 8px 24px rgba(45,122,79,0.4)',
+          }}
+        >
+          {voiceStatus === 'listening' && (
+            <span
+              className="absolute inset-0 rounded-full animate-ping"
+              style={{ background: 'rgba(45,122,79,0.25)' }}
+            />
+          )}
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <rect
+              x="9" y="2" width="6" height="12" rx="3"
+              fill={voiceStatus === 'listening' ? '#2D7A4F' : 'white'}
+            />
+            <path
+              d="M5 10a7 7 0 0 0 14 0"
+              stroke={voiceStatus === 'listening' ? '#2D7A4F' : 'white'}
+              strokeWidth="2" strokeLinecap="round"
+            />
+            <line
+              x1="12" y1="19" x2="12" y2="22"
+              stroke={voiceStatus === 'listening' ? '#2D7A4F' : 'white'}
+              strokeWidth="2" strokeLinecap="round"
+            />
+          </svg>
+        </button>
+      )}
+
+      {/* ── Global Voice Popup (bottom sheet) ───────────────────────────────── */}
+      {popupVisible && (
+        <div
+          className="fixed inset-0 bg-black/20 z-40"
+          onClick={voiceStatus === 'done' || voiceStatus === 'error' ? closeVoicePopup : undefined}
+        />
+      )}
+
+      <div
+        className="fixed left-0 right-0 bottom-0 z-50 transition-transform duration-300 ease-out"
+        style={{ transform: popupVisible ? 'translateY(0)' : 'translateY(110%)' }}
+      >
+        <div className="bg-white rounded-t-3xl shadow-2xl px-5 pt-4 pb-10 max-w-lg mx-auto lg:max-w-2xl">
+          {/* Handle bar */}
+          <div className="w-10 h-1 rounded-full bg-slate-200 mx-auto mb-4" />
+
+          {/* Header row */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div
+                className={`w-2.5 h-2.5 rounded-full ${voiceStatus === 'listening' ? 'animate-pulse' : ''}`}
+                style={{
+                  background:
+                    voiceStatus === 'listening' ? '#2D7A4F'
+                    : voiceStatus === 'processing' ? '#F59E0B'
+                    : voiceStatus === 'done' ? '#2D7A4F'
+                    : '#EF4444',
+                }}
+              />
+              <p className="text-slate-700 font-semibold text-sm">
+                {voiceStatus === 'listening' ? 'Listening...'
+                  : voiceStatus === 'processing' ? 'Processing...'
+                  : voiceStatus === 'done' ? 'Voice Command'
+                  : 'Voice Error'}
+              </p>
+            </div>
+            {(voiceStatus === 'done' || voiceStatus === 'error') && (
+              <button
+                onClick={closeVoicePopup}
+                className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                  <path d="M18 6L6 18M6 6l12 12" stroke="#64748b" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+            )}
           </div>
-        </nav>
+
+          {/* Live transcript */}
+          {(liveTranscript || finalTranscript) && (
+            <div className="mb-3 px-4 py-3 rounded-xl bg-slate-50 border border-slate-100">
+              <p className="text-slate-400 text-[10px] uppercase tracking-wider mb-1 font-semibold">You said</p>
+              <p className="text-slate-700 text-base font-medium leading-relaxed min-h-[28px]">
+                {liveTranscript && <span className="text-slate-400 italic">{liveTranscript}</span>}
+                {finalTranscript && <span className="text-slate-800">{finalTranscript}</span>}
+              </p>
+            </div>
+          )}
+
+          {/* Processing spinner */}
+          {voiceStatus === 'processing' && (
+            <div
+              className="flex items-center gap-3 px-4 py-3 rounded-xl mb-3"
+              style={{ background: 'rgba(45,122,79,0.05)' }}
+            >
+              <div className="w-5 h-5 border-2 border-[#2D7A4F] border-t-transparent rounded-full animate-spin shrink-0" />
+              <p className="text-slate-500 text-sm">Understanding your request...</p>
+            </div>
+          )}
+
+          {/* Animated bars while listening */}
+          {voiceStatus === 'listening' && !liveTranscript && (
+            <div className="flex items-center justify-center gap-2 py-4">
+              {[0, 1, 2, 3, 4].map(i => (
+                <div
+                  key={i}
+                  className="w-1.5 rounded-full animate-bounce"
+                  style={{
+                    background: '#2D7A4F',
+                    height: `${12 + Math.abs(Math.sin(i)) * 10}px`,
+                    animationDelay: `${i * 0.1}s`,
+                    animationDuration: '0.7s',
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Response */}
+          {voiceResponse && voiceStatus === 'done' && (
+            <div
+              className="px-4 py-3.5 rounded-xl"
+              style={{ background: 'rgba(45,122,79,0.07)', border: '1.5px solid rgba(45,122,79,0.2)' }}
+            >
+              <p className="text-slate-400 text-[10px] uppercase tracking-wider mb-1 font-semibold">Talk2Pay</p>
+              <p className="text-slate-700 text-sm leading-relaxed">{voiceResponse}</p>
+            </div>
+          )}
+
+          {/* Error */}
+          {voiceResponse && voiceStatus === 'error' && (
+            <div className="px-4 py-3.5 rounded-xl bg-red-50 border border-red-100">
+              <p className="text-red-600 text-sm leading-relaxed">{voiceResponse}</p>
+            </div>
+          )}
+
+          {/* Speak Again */}
+          {(voiceStatus === 'done' || voiceStatus === 'error') && (
+            <button
+              onClick={speakAgain}
+              className="w-full mt-3 py-3 rounded-xl text-sm font-semibold"
+              style={{ background: 'rgba(45,122,79,0.1)', color: '#2D7A4F' }}
+            >
+              🎤 Speak Again
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

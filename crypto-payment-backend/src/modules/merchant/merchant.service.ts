@@ -20,6 +20,29 @@ export interface Merchant {
   updatedAt: Date;
 }
 
+function getPhoneFormats(phone: string): string[] {
+  const digits = phone.replace(/\D/g, '');
+  if (!digits) return [phone];
+
+  let local = '';
+  let intNoPlus = '';
+  let intWithPlus = '';
+
+  if (digits.startsWith('0') && digits.length === 11) {
+    local = digits;
+    intNoPlus = '234' + digits.slice(1);
+    intWithPlus = '+' + intNoPlus;
+  } else if (digits.startsWith('234')) {
+    intNoPlus = digits;
+    intWithPlus = '+' + digits;
+    local = '0' + digits.slice(3);
+  } else {
+    return [phone, digits, '+' + digits];
+  }
+
+  return Array.from(new Set([phone, digits, local, intNoPlus, intWithPlus]));
+}
+
 @Injectable()
 export class MerchantService {
   constructor(
@@ -80,9 +103,10 @@ export class MerchantService {
 
   // Find merchant by phone number (used by auth service)
   async findByPhoneNumber(phoneNumber: string): Promise<Merchant | null> {
-    const merchant = await this.merchantRepository.findOne({
-      where: { phoneNumber }
-    });
+    const formats = getPhoneFormats(phoneNumber);
+    const merchant = await this.merchantRepository.createQueryBuilder('merchant')
+      .where('merchant.phoneNumber IN (:...formats)', { formats })
+      .getOne();
     return merchant || null;
   }
 

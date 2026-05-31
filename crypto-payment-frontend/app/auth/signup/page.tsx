@@ -1,210 +1,261 @@
-"use client";
-
+'use client';
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-// API import removed. Registration is now localStorage only (mock).
+import { register, devGetOtp, verifyOtp } from '../../lib/api';
+
+type Step = 'form' | 'otp';
 
 export default function SignupPage() {
   const router = useRouter();
-  const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ name: '', phone: '', password: '' });
+  const [step, setStep] = useState<Step>('form');
+  const [firstName, setFirstName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [devOtp, setDevOtp] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState('');
 
-  const handleSubmit = async () => {
-    if (step < 2) {
-      setStep(s => s + 1);
-      return;
-    }
+  // Format phone to international format
+  function formatPhone(raw: string) {
+    const digits = raw.replace(/\D/g, '');
+    if (digits.startsWith('0') && digits.length === 11) return '+234' + digits.slice(1);
+    if (digits.startsWith('234')) return '+' + digits;
+    if (digits.startsWith('+')) return raw;
+    return raw;
+  }
+
+  async function handleRegister() {
+    setError('');
     setLoading(true);
-    setError(null);
     try {
-      // Simulate registration: store mock token and user
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('trust2pay_token', 'mock-token');
-        localStorage.setItem('trust2pay_user', JSON.stringify({ name: form.name, phone: form.phone, email: '', balance: 200000, btc: '0.00380000' }));
-      }
-      router.push('/onboarding');
+      const formatted = formatPhone(phone);
+      await register(formatted, firstName.trim());
+      // Fetch OTP automatically (dev endpoint)
+      try {
+        const { otp: fetched } = await devGetOtp(formatted);
+        if (fetched) setDevOtp(fetched);
+      } catch {}
+      setPhone(formatted);
+      setStep('otp');
     } catch (e: any) {
-      const status = (e as any)?.status ?? (e as any)?.response?.status;
-      const message = (e as any)?.message ?? String(e);
-      if (status === 409 || (message === 'Registration failed' && status === 409)) {
-        setError('An account already exists with this phone number or business name.');
-      } else {
-        setError('Registration failed. Please check your details.');
-      }
+      setError(e.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  async function handleVerify() {
+    setError('');
+    setLoading(true);
+    try {
+      const res = await verifyOtp(phone, otp.trim());
+      if (res.success && res.data?.token) {
+        localStorage.setItem('trust2pay_token', res.data.token);
+        localStorage.setItem('trust2pay_user', JSON.stringify({
+          ...res.data.merchant,
+          balance: 200000,
+        }));
+        // New users go through onboarding first, not directly to dashboard
+        localStorage.removeItem('t2p_onboarding_completed');
+        router.replace('/onboarding');
+      }
+    } catch (e: any) {
+      setError(e.message || 'OTP verification failed');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <div className="min-h-screen flex" style={{ background: '#0a0a0a' }}>
-      {/* Left — branding */}
-      <motion.div className="hidden lg:flex flex-col justify-between w-1/2 p-16 relative overflow-hidden"
-        style={{ background: '#2D7A4F' }}
-        initial={{ opacity: 0, x: -100 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.8, ease: 'easeOut' }}
-      >
-        <div className="flex items-center gap-1">
-          <img src="/logo.svg" alt="Trust2Pay Logo" className="w-12 h-12" />
+    <div className="min-h-screen bg-[#f0f4f8] flex flex-col items-center justify-center px-5 py-5">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+        .signup-root { font-family: 'DM Sans', sans-serif; }
+        .field-box {
+          background: #ffffff;
+          border: 1.5px solid #e4e9f0;
+          border-radius: 14px;
+          transition: border-color 0.18s, box-shadow 0.18s;
+        }
+        .field-box:focus-within {
+          border-color: #2d9e6b;
+          box-shadow: 0 0 0 3px rgba(45,158,107,0.10);
+        }
+        .continue-btn {
+          background: #2d9e6b;
+          border-radius: 14px;
+          color: #fff;
+          font-weight: 700;
+          font-size: 1rem;
+          width: 100%;
+          padding: 15px 0;
+          border: none;
+          cursor: pointer;
+          transition: background 0.15s, opacity 0.15s, transform 0.1s;
+          letter-spacing: 0.01em;
+        }
+        .continue-btn:hover:not(:disabled) { background: #259060; }
+        .continue-btn:active:not(:disabled) { transform: scale(0.98); }
+        .continue-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .otp-input {
+          font-size: 2rem;
+          font-weight: 700;
+          letter-spacing: 0.5em;
+          text-align: center;
+          font-family: monospace;
+          background: transparent;
+          border: none;
+          outline: none;
+          width: 100%;
+          color: #1a2e23;
+          padding: 14px 0;
+        }
+        .back-btn {
+          background: none;
+          border: none;
+          color: #7a8a99;
+          font-size: 0.9rem;
+          cursor: pointer;
+          margin-top: 10px;
+          width: 100%;
+          padding: 10px 0;
+          border-radius: 10px;
+          transition: background 0.12s;
+        }
+        .back-btn:hover { background: #f0f4f8; }
+      `}</style>
 
-          <span className="font-candal text-white text-base">Trust2Pay</span>
+      <div className="signup-root w-full max-w-[360px]">
+        {/* Title */}
+        <div className="mb-8 px-1">
+          <h1 className="text-[1.75rem] font-bold text-[#0f1f17] leading-tight mb-1">
+            {step === 'form' ? 'Create Your Wallet' : 'Verify Your Phone'}
+          </h1>
+          <p className="text-[#7a8a99] text-sm font-medium">
+            {step === 'form'
+              ? 'Enter your details to get started'
+              : `We sent a 6-digit code to ${phone}`}
+          </p>
         </div>
 
-        <div>
-          <h2 className="font-candal text-white leading-[0.9] pb-4" style={{ fontSize: '72px' }}>
-            TALK TO<br />MONEY.
-          </h2>
-          <p className="font-neue text-white/60 text-lg">Your AI-powered financial companion.</p>
-        </div>
-
-      </motion.div>
-
-      {/* Right — form */}
-      <motion.div className="flex-1 flex flex-col bg-[#fafafa] items-center justify-center p-8"
-        initial={{ opacity: 0, x: 100 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.8, ease: 'easeOut' }}
-      >
-        <div className="w-full max-w-md">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-          >
-            <p className="font-candal text-[#2D7A4F] text-xs tracking-[0.3em] pb-2">STEP {step} OF 2</p>
-            <h1 className="font-candal text-black text-4xl pb-2">
-              {step === 1 ? 'CREATE ACCOUNT' : 'SECURE IT'}
-            </h1>
-            <p className="font-neue text-black/40 text-sm pb-5">
-              {step === 1 ? 'Join the financial future.' : 'Set your password.'}
-            </p>
-
-            {/* Progress */}
-            <div className="flex gap-2 pb-5">
-              {[1, 2].map(s => (
-                <div key={s} className="h-0.5 flex-1 rounded-full transition-all duration-500"
-                  style={{ background: s <= step ? '#2D7A4F' : 'rgba(255,255,255,0.1)' }} />
-              ))}
+        {/* Card */}
+        <div className="bg-white rounded-[24px] shadow-sm border border-[#e8edf4] p-6">
+          {error && (
+            <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium">
+              {error}
             </div>
+          )}
 
-            {/* Error message */}
-            {error && (
-              <div className="mb-4 p-3 rounded-lg bg-red-100 text-red-700 text-sm text-center">
-                {error}
-              </div>
-            )}
-
-            <motion.div className="flex flex-col gap-4"
-              initial="hidden"
-              animate="visible"
-              key={step}
-              variants={{
-                hidden: { opacity: 0 },
-                visible: {
-                  opacity: 1,
-                  transition: {
-                    staggerChildren: 0.1,
-                    delayChildren: 0.2,
-                  },
-                },
-              }}
-            >
-              {step === 1 ? (
-                <>
-                  {[
-                    { key: 'name', label: 'FULL NAME', placeholder: 'Omilabu Elizabeth', type: 'text' },
-                    { key: 'phone', label: 'PHONE NUMBER', placeholder: '+234 800 000 0000', type: 'tel' },
-                  ].map(f => (
-                    <motion.div key={f.key}
-                      variants={{
-                        hidden: { opacity: 0, x: -20 },
-                        visible: { opacity: 1, x: 0 },
-                      }}
-                      transition={{ duration: 0.5 }}
-                    >
-                      <label className="font-candal text-black/40 text-[10px] tracking-widest block pb-2">{f.label}</label>
-                      <motion.input
-                        type={f.type}
-                        placeholder={f.placeholder}
-                        value={(form as any)[f.key]}
-                        onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                        className="w-full px-5 py-4 rounded-2xl font-neue text-black text-sm outline-none transition-all duration-300"
-                        style={{
-                          background: 'rgba(0,0,0,0.05)',
-                          border: '1px solid rgba(255,255,255,0.08)',
-                        }}
-                        whileFocus={{
-                          scale: 1.02,
-                          boxShadow: '0 0 20px rgba(45,122,79,0.3)',
-                          borderColor: 'rgba(45,122,79,0.5)',
-                        }}
-                      />
-                    </motion.div>
-                  ))}
-                </>
-              ) : (
-                <motion.div
-                  variants={{
-                    hidden: { opacity: 0, x: -20 },
-                    visible: { opacity: 1, x: 0 },
-                  }}
-                  transition={{ duration: 0.5 }}
-                >
-                  <label className="font-candal text-black/40 text-[10px] tracking-widest block pb-2">PASSWORD</label>
-                  <motion.input
-                    type="password"
-                    placeholder="Create a strong password"
-                    value={form.password}
-                    onChange={e => setForm(prev => ({ ...prev, password: e.target.value }))}
-                    className="w-full px-5 py-4 rounded-2xl font-neue text-black text-sm outline-none transition-all duration-300"
-                    style={{
-                      background: 'rgba(0,0,0,0.25)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                    }}
-                    whileFocus={{
-                      scale: 1.02,
-                      boxShadow: '0 0 20px rgba(45,122,79,0.3)',
-                      borderColor: 'rgba(45,122,79,0.5)',
-                    }}
+          {step === 'form' ? (
+            <>
+              {/* First Name Field */}
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-[#7a8a99] uppercase tracking-widest mb-2">
+                  First Name
+                </label>
+                <div className="field-box flex items-center gap-3 px-4 py-0">
+                 
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={e => setFirstName(e.target.value)}
+                    placeholder="e.g. Chidi"
+                    className="flex-1 bg-transparent border-none outline-none text-[#1a2e23] text-sm font-medium placeholder-[#c5cdd8] py-3.5"
                   />
-                </motion.div>
+                </div>
+              </div>
+
+              {/* Phone Number Field */}
+              <div className="mb-6">
+                <label className="block text-xs font-semibold text-[#7a8a99] uppercase tracking-widest mb-2">
+                  Phone Number
+                </label>
+                <div className="field-box flex items-center gap-3 px-4 py-0">
+                 
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={e => setPhone(e.target.value)}
+                    placeholder="+234 000 000 0000"
+                    className="flex-1 bg-transparent border-none outline-none text-[#1a2e23] text-sm font-medium placeholder-[#c5cdd8] py-3.5"
+                  />
+                </div>
+              </div>
+
+              <button
+                className="continue-btn"
+                onClick={handleRegister}
+                disabled={loading || !firstName.trim() || !phone.trim()}
+              >
+                {loading ? 'Creating account…' : 'Continue'}
+              </button>
+
+              <p className="mt-4 text-center text-[#9baab8] text-xs leading-relaxed">
+                By continuing, you agree to our{' '}
+                <Link href="#" className="text-[#2d9e6b] font-semibold hover:underline">Terms of Service</Link>
+                {' '}and{' '}
+                <Link href="#" className="text-[#2d9e6b] font-semibold hover:underline">Privacy Policy</Link>
+              </p>
+            </>
+          ) : (
+            <>
+              {/* Dev OTP helper */}
+              {devOtp && (
+                <div className="mb-4 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
+                  <span className="font-semibold">Dev OTP:</span>{' '}
+                  <span
+                    className="font-mono text-base cursor-pointer underline"
+                    onClick={() => setOtp(devOtp)}
+                  >
+                    {devOtp}
+                  </span>{' '}
+                  <span className="text-emerald-600">(tap to fill)</span>
+                </div>
               )}
 
-              <motion.button
-                onClick={handleSubmit}
-                whileHover={{ scale: 1.05, boxShadow: '0 12px 40px rgba(45,122,79,0.35)' }}
-                whileTap={{ scale: 0.95 }}
-                className="w-full py-4 rounded-2xl font-candal text-white text-sm tracking-widest mt-2"
-                style={{ background: '#2D7A4F', boxShadow: '0 8px 30px rgba(45,122,79,0.25)' }}
-                variants={{
-                  hidden: { opacity: 0, y: 20 },
-                  visible: { opacity: 1, y: 0 },
-                }}
-              >
-                {step === 1 ? 'CONTINUE →' : 'CREATE ACCOUNT'}
-              </motion.button>
-            </motion.div>
+              <div className="mb-6">
+                <label className="block text-xs font-semibold text-[#7a8a99] uppercase tracking-widest mb-2">
+                  6-Digit OTP Code
+                </label>
+                <div className="field-box">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={otp}
+                    onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="000000"
+                    className="otp-input"
+                  />
+                </div>
+              </div>
 
-            <motion.p className="font-neue text-black/30 text-sm text-center pt-8"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-            >
-              Already have an account?{' '}
-              <motion.span
-                whileHover={{ color: '#2D7A4F' }}
+              <button
+                className="continue-btn"
+                onClick={handleVerify}
+                disabled={loading || otp.length !== 6}
               >
-                <Link href="/auth/login" className="text-[#2D7A4F] hover:underline">Sign in</Link>
-              </motion.span>
-            </motion.p>
-          </motion.div>
+                {loading ? 'Verifying…' : 'Verify & Continue →'}
+              </button>
+
+              <button className="back-btn" onClick={() => setStep('form')}>
+                ← Change phone number
+              </button>
+            </>
+          )}
         </div>
-      </motion.div>
+
+        {/* Sign in link */}
+        {step === 'form' && (
+          <p className="mt-5 text-center text-[#9baab8] text-sm">
+            Already have an account?{' '}
+            <Link href="/auth/login" className="text-[#2d9e6b] font-semibold hover:underline">
+              Sign In
+            </Link>
+          </p>
+        )}
+      </div>
     </div>
   );
 }

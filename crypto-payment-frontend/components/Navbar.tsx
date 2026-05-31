@@ -48,9 +48,9 @@ export default function Navbar({ theme = 'dark' }: { theme?: 'dark' | 'light' | 
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             className="flex items-center gap-2"
           >
-             <img src="/logo.svg" alt="Trust2Pay Logo" className="w-10 h-10 md:w-12 md:h-12" />
+             <img src="/logo.svg" alt="Talk2Pay Logo" className="w-10 h-10 md:w-12 md:h-12" />
             
-            <span className={`font-candal text-sm md:text-base tracking-wide ${textColor}`}>Trust2Pay</span>
+            <span className={`font-candal text-sm md:text-base tracking-wide ${textColor}`}>Talk2Pay</span>
           </motion.div>
         </Link>
         

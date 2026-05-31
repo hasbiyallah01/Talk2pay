@@ -96,7 +96,7 @@ export default function PhoneMockup({
               {/* App Header */}
               <div className="px-5 py-2 flex items-center justify-between">
                 <div>
-                  <p className="text-white/50 text-[9px] font-medium">TRUST2PAY</p>
+                  <p className="text-white/50 text-[9px] font-medium">TALK2PAY</p>
                   <p className="text-white  text-sm font-bold">Good morning, David</p>
                 </div>
                 <div className="w-8 h-8 rounded-full bg-[#2D7A4F] flex items-center justify-center">

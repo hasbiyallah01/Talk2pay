@@ -79,7 +79,7 @@ export default function CTASection() {
                 cursor: 'pointer'
               }}
             >
-              Try Trust2Pay Now
+              Try Talk2Pay Now
             </motion.button>
           </Link>
 

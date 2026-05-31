@@ -83,7 +83,7 @@ export default function LaptopSection() {
                       <span className="text-white text-xs font-bold">T2</span>
                     </div>
                     <div>
-                      <p className="text-white text-sm font-semibold">Trust2Pay AI</p>
+                      <p className="text-white text-sm font-semibold">Talk2Pay AI</p>
                       <p className="text-white/60 text-xs">● Online</p>
                     </div>
                   </div>

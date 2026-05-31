@@ -1,3 +1,5 @@
+import { Get, Query } from '@nestjs/common';
+import { PhoneVerificationService } from './phone-verification.service';
 import {
   Controller,
   Post,
@@ -22,10 +24,30 @@ import { RegisterDto } from './dto/register.dto';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly phoneVerificationService: PhoneVerificationService,
+  ) { }
+
+  /**
+   * DEVELOPMENT ONLY: Get the latest OTP for a phone number
+   * GET /auth/dev-latest-otp?phoneNumber=...  (returns { otp })
+   */
+  @Get('dev-latest-otp')
+  async getLatestOtp(@Query('phoneNumber') phoneNumber: string) {
+    // WARNING: Do not enable in production!
+    if (!phoneNumber) {
+      return { otp: null };
+    }
+    // Find the latest OTP for this phone number
+    const repo = (this.phoneVerificationService as any).repo;
+    if (!repo) return { otp: null };
+    const record = await repo.findOne({ where: { phoneNumber }, order: { createdAt: 'DESC' } });
+    return { otp: record?.otp ?? null };
+  }
 
   @Post('register')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Register a new merchant account',
     description: 'Creates a new merchant account with phone number and first name. Automatically sends OTP for verification.'
   })
@@ -51,7 +73,7 @@ export class AuthController {
   @ApiConflictResponse({ description: 'Phone number already exists' })
   async register(@Body(ValidationPipe) registerDto: RegisterDto) {
     const result = await this.authService.register(registerDto);
-    
+
     return {
       success: true,
       data: {
@@ -63,7 +85,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Send OTP to phone number',
     description: 'Sends a one-time password to the registered phone number for authentication'
   })
@@ -83,7 +105,7 @@ export class AuthController {
   @ApiUnauthorizedResponse({ description: 'Phone number not registered' })
   async sendOtp(@Body(ValidationPipe) sendOtpDto: SendOtpDto) {
     const result = await this.authService.sendOtp(sendOtpDto);
-    
+
     return {
       success: true,
       message: result.message,
@@ -92,7 +114,7 @@ export class AuthController {
 
   @Post('verify-otp')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Verify OTP and authenticate',
     description: 'Verifies the OTP and returns authentication token with merchant details'
   })
@@ -125,7 +147,7 @@ export class AuthController {
   @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
   async verifyOtp(@Body(ValidationPipe) verifyOtpDto: VerifyOtpDto) {
     const result = await this.authService.verifyOtp(verifyOtpDto);
-    
+
     return {
       success: true,
       data: {

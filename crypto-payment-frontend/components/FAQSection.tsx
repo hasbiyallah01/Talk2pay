@@ -6,7 +6,7 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 const faqs = [
   {
     q: 'How does voice payment work?',
-    a: 'Simply speak your intent — "Send ₦500 to David" — and Trust2Pay AI parses, confirms, and executes. No typing, no menus, just conversation.'
+    a: 'Simply speak your intent — "Send ₦500 to David" — and Talk2Pay AI parses, confirms, and executes. No typing, no menus, just conversation.'
   },
   {
     q: 'Is it available on WhatsApp?',

@@ -46,7 +46,7 @@ export class AuthService {
       phoneNumber,
       isPhoneVerified: false,
       firstName,
-      walletBalance: 0,
+      walletBalance: 200000,
       cryptoPreferences: [CryptoType.BITCOIN], // Default to Bitcoin
       createdAt: new Date(),
       updatedAt: new Date(),

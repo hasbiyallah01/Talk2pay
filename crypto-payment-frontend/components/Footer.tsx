@@ -14,10 +14,10 @@ export default function Footer() {
         <div>
           <div className="flex items-center gap-2.5 mb-4">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#2D7A4F' }}>
-             <img src="/logo.svg" alt="Trust2Pay Logo" className="w-4 h-4" />
+             <img src="/logo.svg" alt="Talk2Pay Logo" className="w-4 h-4" />
         
             </div>
-            <span className="font-candal text-white text-base">Trust2Pay</span>
+            <span className="font-candal text-white text-base">Talk2Pay</span>
           </div>
           <p className="font-neue text-white/50 text-sm max-w-xs leading-relaxed">
             Talk to money naturally.<br />AI-powered financial platform for everyone.
@@ -45,7 +45,7 @@ export default function Footer() {
 
       {/* Bottom bar */}
       <div className="mt-16 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-        <p className="font-neue text-black/25 text-xs">© 2025 Trust2Pay. All rights reserved.</p>
+        <p className="font-neue text-black/25 text-xs">© 2025 Talk2Pay. All rights reserved.</p>
         <p className="font-neue text-black/25 text-xs">Talk to money naturally.</p>
       </div>
     </footer>

@@ -1,457 +1,376 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { fundWallet, completeFunding, getFundingMethods } from '../../lib/api';
 
 interface SavingsGoal {
   id: string;
   name: string;
   target: number;
   saved: number;
-  color: string;
   emoji: string;
+  color: string;
+  createdAt: string;
 }
 
-const defaultGoals: SavingsGoal[] = [
-  { id: '1', name: 'Emergency Fund', target: 50000, saved: 32000, color: '#2D7A4F', emoji: '🏥' },
-  { id: '2', name: 'New Phone', target: 150000, saved: 45000, color: '#4A90D9', emoji: '📱' },
-  { id: '3', name: 'School Fees', target: 80000, saved: 80000, color: '#E67E22', emoji: '🎓' },
-];
+const COLORS = ['#2D7A4F', '#4A90D9', '#E67E22', '#9B59B6', '#E74C3C'];
+const EMOJIS = ['🏠', '✈️', '🎓', '🚗', '💍', '📱', '💊', '🎯'];
 
-const PALETTE = ['#2D7A4F', '#4A90D9', '#E67E22', '#9B59B6', '#E74C3C', '#1ABC9C'];
-
-function radialProgress(pct: number, size = 64, stroke = 6, color = '#2D7A4F') {
-  const r = (size - stroke) / 2;
-  const circ = 2 * Math.PI * r;
-  const offset = circ - (pct / 100) * circ;
-  return { r, circ, offset, size, stroke, color };
-}
-
-export default function Savings() {
-  const [goals, setGoals] = useState<SavingsGoal[]>(defaultGoals);
+export default function SavingsPage() {
+  const [goals, setGoals] = useState<SavingsGoal[]>([]);
+  const [balance, setBalance] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
+  const [showFund, setShowFund] = useState(false);
+  const [fundAmount, setFundAmount] = useState('');
+  const [fundMethod, setFundMethod] = useState('bank_transfer');
+  const [fundMethods, setFundMethods] = useState<any[]>([]);
+  const [fundLoading, setFundLoading] = useState(false);
+  const [fundSuccess, setFundSuccess] = useState('');
+  const [fundError, setFundError] = useState('');
+
+  // New goal form
   const [newName, setNewName] = useState('');
   const [newTarget, setNewTarget] = useState('');
-  const [newEmoji, setNewEmoji] = useState('🎯');
-  const [newColor, setNewColor] = useState(PALETTE[0]);
-  const [topUpGoal, setTopUpGoal] = useState<string | null>(null);
-  const [topUpAmount, setTopUpAmount] = useState('');
-  const [balance, setBalance] = useState(200000);
-  const [deleteGoal, setDeleteGoal] = useState<string | null>(null);
+  const [newEmoji, setNewEmoji] = useState('🏠');
+  const [newColor, setNewColor] = useState(COLORS[0]);
+
+  // Selected goal to add savings
+  const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
+  const [addAmount, setAddAmount] = useState('');
 
   useEffect(() => {
-    const stored = localStorage.getItem('trust2pay_goals');
-    if (stored) setGoals(JSON.parse(stored));
-    else localStorage.setItem('trust2pay_goals', JSON.stringify(defaultGoals));
-    const userStored = localStorage.getItem('trust2pay_user');
-    if (userStored) setBalance(JSON.parse(userStored).balance ?? 200000);
+    const stored = JSON.parse(localStorage.getItem('trust2pay_user') || '{}');
+    setBalance(stored.balance || 0);
+    const savedGoals = JSON.parse(localStorage.getItem('trust2pay_savings') || '[]');
+    setGoals(savedGoals);
+
+    // Fetch funding methods from backend
+    getFundingMethods().then(res => setFundMethods(res.methods || [])).catch(() => {});
   }, []);
 
-  const saveGoals = (g: SavingsGoal[]) => {
-    setGoals(g);
-    localStorage.setItem('trust2pay_goals', JSON.stringify(g));
-  };
+  function saveGoals(updated: SavingsGoal[]) {
+    setGoals(updated);
+    localStorage.setItem('trust2pay_savings', JSON.stringify(updated));
+  }
 
-  const addGoal = () => {
+  function handleAddGoal() {
     if (!newName || !newTarget) return;
-    const g: SavingsGoal = {
+    const goal: SavingsGoal = {
       id: Date.now().toString(),
       name: newName,
       target: Number(newTarget),
       saved: 0,
-      color: newColor,
       emoji: newEmoji,
+      color: newColor,
+      createdAt: new Date().toISOString(),
     };
-    saveGoals([...goals, g]);
-    setNewName(''); setNewTarget(''); setNewEmoji('🎯'); setNewColor(PALETTE[0]); setShowAdd(false);
-  };
+    saveGoals([...goals, goal]);
+    setNewName(''); setNewTarget(''); setShowAdd(false);
+  }
 
-  const handleTopUp = (goalId: string) => {
-    if (!topUpAmount || Number(topUpAmount) <= 0) return;
-    const amt = Number(topUpAmount);
-    if (amt > balance) { alert('Insufficient balance!'); return; }
-    const updated = goals.map(g => g.id === goalId ? { ...g, saved: Math.min(g.saved + amt, g.target) } : g);
+  function handleAddSavings() {
+    if (!selectedGoal || !addAmount) return;
+    const amt = Number(addAmount);
+    if (amt > balance) return alert('Insufficient balance');
+    const updated = goals.map(g =>
+      g.id === selectedGoal ? { ...g, saved: Math.min(g.saved + amt, g.target) } : g
+    );
     saveGoals(updated);
-    const userStored = localStorage.getItem('trust2pay_user');
-    const user = userStored ? JSON.parse(userStored) : {};
-    const newBal = balance - amt;
-    localStorage.setItem('trust2pay_user', JSON.stringify({ ...user, balance: newBal }));
-    setBalance(newBal);
-    setTopUpGoal(null); setTopUpAmount('');
-  };
 
-  const handleDelete = (goalId: string) => {
-    saveGoals(goals.filter(g => g.id !== goalId));
-    setDeleteGoal(null);
-  };
+    // Deduct from balance
+    const stored = JSON.parse(localStorage.getItem('trust2pay_user') || '{}');
+    const newBal = (stored.balance || 0) - amt;
+    localStorage.setItem('trust2pay_user', JSON.stringify({ ...stored, balance: newBal }));
+    setBalance(newBal);
+    setSelectedGoal(null);
+    setAddAmount('');
+  }
+
+  function handleDeleteGoal(id: string) {
+    if (!confirm('Delete this savings goal?')) return;
+    const goal = goals.find(g => g.id === id);
+    if (goal && goal.saved > 0) {
+      // Refund saved amount to balance
+      const stored = JSON.parse(localStorage.getItem('trust2pay_user') || '{}');
+      const newBal = (stored.balance || 0) + goal.saved;
+      localStorage.setItem('trust2pay_user', JSON.stringify({ ...stored, balance: newBal }));
+      setBalance(newBal);
+    }
+    saveGoals(goals.filter(g => g.id !== id));
+  }
+
+async function handleFundWallet() {
+  setFundLoading(true);
+  setFundError('');
+  setFundSuccess('');
+  try {
+    const res = await fundWallet(Number(fundAmount), fundMethod);
+    if (res?.transactionId) {
+      const complete = await completeFunding(res.transactionId, Number(fundAmount)) as { newBalance?: number };
+      const newBal = complete?.newBalance ?? (balance + Number(fundAmount));
+
+      const stored = JSON.parse(localStorage.getItem('trust2pay_user') || '{}');
+      localStorage.setItem('trust2pay_user', JSON.stringify({ ...stored, balance: newBal }));
+      setBalance(newBal);
+      setFundSuccess(`₦${Number(fundAmount).toLocaleString()} added to your wallet!`);
+      setFundAmount('');
+    }
+  } catch (e: any) {
+    const amt = Number(fundAmount);
+    if (amt > 0) {
+      const stored = JSON.parse(localStorage.getItem('trust2pay_user') || '{}');
+      const newBal = (stored.balance || 0) + amt;
+      localStorage.setItem('trust2pay_user', JSON.stringify({ ...stored, balance: newBal }));
+      setBalance(newBal);
+      setFundSuccess(`₦${amt.toLocaleString()} added to your wallet! (simulated)`);
+      setFundAmount('');
+    } else {
+      setFundError(e.message || 'Funding failed');
+    }
+  } finally {
+    setFundLoading(false);
+  }
+}
 
   const totalSaved = goals.reduce((s, g) => s + g.saved, 0);
   const totalTarget = goals.reduce((s, g) => s + g.target, 0);
-  const completedCount = goals.filter(g => g.saved >= g.target).length;
-  const overallPct = totalTarget > 0 ? Math.round((totalSaved / totalTarget) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-[#f0f4f1]">
-
-      {/* ── Hero Header ── */}
-      <div className="relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1a5c38 0%, #2D7A4F 60%, #3a9460 100%)' }}>
-        {/* Decorative circles */}
-        <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full opacity-10" style={{ background: 'white' }} />
-        <div className="absolute top-16 -right-6 w-28 h-28 rounded-full opacity-10" style={{ background: 'white' }} />
-
-        <div className="relative px-4 pt-10 pb-7 max-w-2xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <Link
-                href="/dashboard"
-                className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center shrink-0 backdrop-blur-sm">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <path d="M19 12H5M12 5l-7 7 7 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </Link>
-              <div>
-                <h1 className="text-white font-bold text-xl leading-tight">My Savings</h1>
-                <p className="text-white/60 text-xs">{goals.length} active goals</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowAdd(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full font-bold text-sm transition-all hover:bg-white/90 active:scale-95"
-              style={{ background: 'white', color: '#2D7A4F' }}>
-              <span className="text-base leading-none">+</span>
-              New Goal
-            </button>
-          </div>
-
-          {/* Stats row */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-2xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)' }}>
-              <p className="text-white font-bold text-lg leading-tight">₦{(totalSaved / 1000).toFixed(0)}k</p>
-              <p className="text-white/60 text-xs mt-0.5">Saved</p>
-            </div>
-            <div className="rounded-2xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)' }}>
-              <p className="text-white font-bold text-lg leading-tight">{overallPct}%</p>
-              <p className="text-white/60 text-xs mt-0.5">Overall</p>
-            </div>
-            <div className="rounded-2xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)' }}>
-              <p className="text-white font-bold text-lg leading-tight">{completedCount}/{goals.length}</p>
-              <p className="text-white/60 text-xs mt-0.5">Complete</p>
+    <div className="min-h-screen bg-[#f5f7f5]">
+      {/* Header */}
+      <div className="bg-[#2D7A4F] px-4 pt-10 pb-6">
+        <div className="flex items-center justify-between max-w-lg mx-auto lg:max-w-2xl">
+          <div className="flex items-center gap-3">
+            <Link href="/dashboard"
+              className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M19 12H5M12 5l-7 7 7 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Link>
+            <div>
+              <h1 className="text-white font-bold text-xl">Savings Goals</h1>
+              <p className="text-white/70 text-sm">Wallet: ₦{balance.toLocaleString()}</p>
             </div>
           </div>
+          <button onClick={() => setShowFund(true)}
+            className="px-3 py-2 rounded-xl bg-white/20 text-white text-xs font-semibold">
+            + Fund Wallet
+          </button>
         </div>
       </div>
 
-      {/* ── Body ── */}
-      <div className="px-4 py-5 max-w-2xl mx-auto space-y-3 pb-10">
+      <div className="px-4 py-5 max-w-lg mx-auto lg:max-w-2xl space-y-4">
 
-        {goals.length === 0 && (
-          <div className="text-center py-16">
-            <div className="text-5xl mb-4">🎯</div>
-            <p className="text-slate-600 font-semibold text-base mb-1">No savings goals yet</p>
-            <p className="text-slate-400 text-sm mb-5">Start saving towards something meaningful</p>
-            <button
-              onClick={() => setShowAdd(true)}
-              className="px-6 py-3 rounded-2xl text-white font-semibold text-sm"
-              style={{ background: '#2D7A4F' }}>
-              Create Your First Goal
-            </button>
+        {/* Summary */}
+        {goals.length > 0 && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white rounded-2xl shadow-sm p-4">
+              <p className="text-slate-500 text-xs font-medium mb-1">Total Saved</p>
+              <p className="font-bold text-lg" style={{ color: '#2D7A4F' }}>₦{totalSaved.toLocaleString()}</p>
+            </div>
+            <div className="bg-white rounded-2xl shadow-sm p-4">
+              <p className="text-slate-500 text-xs font-medium mb-1">Total Target</p>
+              <p className="font-bold text-lg text-slate-800">₦{totalTarget.toLocaleString()}</p>
+            </div>
           </div>
         )}
 
-        {goals.map(goal => {
-          const pct = totalTarget > 0 ? Math.min((goal.saved / goal.target) * 100, 100) : 0;
-          const done = goal.saved >= goal.target;
-          const remaining = goal.target - goal.saved;
-          const rp = radialProgress(pct, 64, 5, goal.color);
-
-          return (
-            <div
-              key={goal.id}
-              className="bg-white rounded-3xl shadow-sm overflow-hidden"
-              style={{ border: done ? `2px solid ${goal.color}30` : '2px solid transparent' }}>
-
-              {/* Top section */}
-              <div className="p-5">
-                <div className="flex items-start gap-4">
-
-                  {/* Radial progress */}
-                  <div className="relative shrink-0">
-                    <svg width={rp.size} height={rp.size} viewBox={`0 0 ${rp.size} ${rp.size}`}>
-                      <circle
-                        cx={rp.size / 2} cy={rp.size / 2} r={rp.r}
-                        fill="none" stroke="#f1f5f9" strokeWidth={rp.stroke}
-                      />
-                      <circle
-                        cx={rp.size / 2} cy={rp.size / 2} r={rp.r}
-                        fill="none" stroke={goal.color} strokeWidth={rp.stroke}
-                        strokeDasharray={rp.circ}
-                        strokeDashoffset={rp.offset}
-                        strokeLinecap="round"
-                        transform={`rotate(-90 ${rp.size / 2} ${rp.size / 2})`}
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-xl leading-none">{goal.emoji}</span>
+        {/* Goals */}
+        {goals.length === 0 ? (
+          <div className="bg-white rounded-2xl shadow-sm p-10 text-center">
+            <div className="text-4xl mb-3">🎯</div>
+            <p className="text-slate-700 font-bold mb-1">No savings goals yet</p>
+            <p className="text-slate-400 text-sm mb-5">Create your first goal to start saving</p>
+          </div>
+        ) : (
+          goals.map(goal => {
+            const pct = Math.min(100, (goal.saved / goal.target) * 100);
+            return (
+              <div key={goal.id} className="bg-white rounded-2xl shadow-sm p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl"
+                      style={{ background: goal.color + '20' }}>
+                      {goal.emoji}
+                    </div>
+                    <div>
+                      <p className="text-slate-800 font-bold text-sm">{goal.name}</p>
+                      <p className="text-slate-400 text-xs">₦{goal.saved.toLocaleString()} / ₦{goal.target.toLocaleString()}</p>
                     </div>
                   </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-slate-800 font-bold text-base truncate">{goal.name}</p>
-                        {done ? (
-                          <span
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold mt-0.5"
-                            style={{ background: `${goal.color}15`, color: goal.color }}>
-                            ✓ Goal Reached!
-                          </span>
-                        ) : (
-                          <p className="text-slate-400 text-xs mt-0.5">
-                            ₦{remaining.toLocaleString()} to go
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <span className="font-bold text-base" style={{ color: goal.color }}>
-                          {Math.round(pct)}%
-                        </span>
-                        <button
-                          onClick={() => setDeleteGoal(goal.id)}
-                          className="w-7 h-7 rounded-full flex items-center justify-center text-slate-300 hover:text-red-400 hover:bg-red-50 transition-all ml-1">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-                            <polyline points="3 6 5 6 21 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                            <path d="M19 6l-1 14H6L5 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Amounts */}
-                    <div className="flex items-baseline gap-1 mt-2">
-                      <span className="font-bold text-slate-800" style={{ fontSize: 18 }}>
-                        ₦{goal.saved.toLocaleString()}
-                      </span>
-                      <span className="text-slate-300 text-sm">/</span>
-                      <span className="text-slate-400 text-sm">₦{goal.target.toLocaleString()}</span>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold" style={{ color: goal.color }}>{pct.toFixed(0)}%</span>
+                    <button onClick={() => handleDeleteGoal(goal.id)}
+                      className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center text-red-400 hover:bg-red-100 transition-all">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    </button>
                   </div>
                 </div>
 
                 {/* Progress bar */}
-                <div className="mt-4 w-full bg-slate-100 rounded-full h-1.5">
-                  <div
-                    className="h-1.5 rounded-full transition-all duration-700"
-                    style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${goal.color}80, ${goal.color})` }}
-                  />
+                <div className="w-full bg-slate-100 rounded-full h-2 mb-3">
+                  <div className="h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${pct}%`, background: goal.color }} />
                 </div>
-              </div>
 
-              {/* Add money section */}
-              {!done && (
-                <div className="px-5 pb-4">
-                  {topUpGoal === goal.id ? (
-                    <div className="flex gap-2 items-center">
-                      <div className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                        <span className="text-slate-400 text-sm font-bold">₦</span>
-                        <input
-                          type="number"
-                          value={topUpAmount}
-                          onChange={e => setTopUpAmount(e.target.value)}
-                          placeholder="Enter amount"
-                          autoFocus
-                          className="flex-1 bg-transparent text-slate-700 text-sm outline-none"
-                        />
-                      </div>
-                      <button
-                        onClick={() => handleTopUp(goal.id)}
-                        className="px-5 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:opacity-90"
+                {pct < 100 && (
+                  selectedGoal === goal.id ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        value={addAmount}
+                        onChange={e => setAddAmount(e.target.value)}
+                        placeholder={`Amount (max ₦${Math.min(balance, goal.target - goal.saved).toLocaleString()})`}
+                        className="flex-1 px-3 py-2 rounded-xl bg-slate-50 border border-slate-100 text-slate-700 text-sm outline-none placeholder-slate-300"
+                      />
+                      <button onClick={handleAddSavings}
+                        disabled={!addAmount || Number(addAmount) > balance}
+                        className="px-4 py-2 rounded-xl text-white font-semibold text-sm disabled:opacity-40"
                         style={{ background: goal.color }}>
-                        Add
+                        Save
                       </button>
-                      <button
-                        onClick={() => { setTopUpGoal(null); setTopUpAmount(''); }}
-                        className="w-10 h-10 rounded-xl text-slate-400 text-sm bg-slate-100 flex items-center justify-center">
+                      <button onClick={() => { setSelectedGoal(null); setAddAmount(''); }}
+                        className="px-3 py-2 rounded-xl text-slate-500 text-sm bg-slate-50">
                         ✕
                       </button>
                     </div>
                   ) : (
-                    <button
-                      onClick={() => setTopUpGoal(goal.id)}
-                      className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2"
-                      style={{ background: `${goal.color}10`, color: goal.color }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-                        <path d="M12 8v8M8 12h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                      </svg>
-                      Add Money
+                    <button onClick={() => setSelectedGoal(goal.id)}
+                      className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all"
+                      style={{ background: goal.color + '15', color: goal.color }}>
+                      + Add Savings
                     </button>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                  )
+                )}
 
-      {/* ── Add Goal Modal ── */}
-      {showAdd && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.5)' }}
-          onClick={e => { if (e.target === e.currentTarget) setShowAdd(false); }}>
-          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
-            {/* Modal header */}
-            <div className="px-6 pt-5 pb-4 border-b border-slate-100">
-              <div className="flex items-center justify-between">
-                <h3 className="text-slate-800 font-bold text-lg">New Savings Goal</h3>
-                <button
-                  onClick={() => setShowAdd(false)}
-                  className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                </button>
+                {pct >= 100 && (
+                  <div className="text-center py-2">
+                    <span className="text-[#2D7A4F] font-bold text-sm">🎉 Goal Reached!</span>
+                  </div>
+                )}
               </div>
-            </div>
+            );
+          })
+        )}
 
-            <div className="px-6 py-5 flex flex-col gap-4">
-              {/* Emoji + Name row */}
-              <div className="flex gap-3">
-                <div>
-                  <p className="text-slate-400 text-xs font-medium mb-2">Icon</p>
-                  <div className="flex gap-1.5 flex-wrap w-[140px]">
-                    {['🎯', '🏠', '📱', '🚗', '🎓', '💊', '✈️', '💍', '💻', '🏖️'].map(e => (
-                      <button
-                        key={e}
-                        onClick={() => setNewEmoji(e)}
-                        className="w-9 h-9 rounded-xl text-lg flex items-center justify-center transition-all"
-                        style={{
-                          background: newEmoji === e ? 'rgba(45,122,79,0.12)' : '#f8fafc',
-                          border: newEmoji === e ? '2px solid #2D7A4F' : '2px solid #e2e8f0',
-                        }}>
-                        {e}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <p className="text-slate-400 text-xs font-medium mb-2">Color</p>
-                  <div className="flex flex-wrap gap-2">
-                    {PALETTE.map(c => (
-                      <button
-                        key={c}
-                        onClick={() => setNewColor(c)}
-                        className="w-7 h-7 rounded-full transition-all"
-                        style={{
-                          background: c,
-                          outline: newColor === c ? `3px solid ${c}` : 'none',
-                          outlineOffset: 2,
-                          transform: newColor === c ? 'scale(1.15)' : 'scale(1)',
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
+        {/* Add Goal */}
+        {showAdd ? (
+          <div className="bg-white rounded-2xl shadow-sm p-5">
+            <h3 className="text-slate-800 font-bold mb-4">New Savings Goal</h3>
+            <div className="space-y-3">
+              <input value={newName} onChange={e => setNewName(e.target.value)}
+                placeholder="Goal name (e.g. Emergency Fund)"
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 text-slate-700 text-sm outline-none placeholder-slate-300" />
+              <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-50 border border-slate-100">
+                <span className="text-slate-600 font-bold">₦</span>
+                <input type="number" value={newTarget} onChange={e => setNewTarget(e.target.value)}
+                  placeholder="Target amount"
+                  className="bg-transparent text-slate-700 text-sm outline-none flex-1 placeholder-slate-300" />
               </div>
 
-              {/* Goal Name */}
               <div>
-                <label className="text-slate-400 text-xs font-medium mb-2 block">Goal Name</label>
-                <input
-                  value={newName}
-                  onChange={e => setNewName(e.target.value)}
-                  placeholder="e.g. New Laptop"
-                  className="w-full px-4 py-3 rounded-xl text-slate-700 text-sm outline-none bg-slate-50 border border-slate-100 focus:border-[#2D7A4F] transition-colors"
-                />
-              </div>
-
-              {/* Target Amount */}
-              <div>
-                <label className="text-slate-400 text-xs font-medium mb-2 block">Target Amount (₦)</label>
-                <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 focus-within:border-[#2D7A4F] transition-colors">
-                  <span className="text-slate-400 font-bold">₦</span>
-                  <input
-                    type="number"
-                    value={newTarget}
-                    onChange={e => setNewTarget(e.target.value)}
-                    placeholder="0"
-                    className="flex-1 bg-transparent text-slate-700 text-sm outline-none"
-                  />
+                <p className="text-slate-500 text-xs mb-2">Pick an emoji</p>
+                <div className="flex gap-2 flex-wrap">
+                  {EMOJIS.map(e => (
+                    <button key={e} onClick={() => setNewEmoji(e)}
+                      className="w-9 h-9 rounded-xl flex items-center justify-center text-lg transition-all"
+                      style={{ background: newEmoji === e ? '#2D7A4F20' : '#f1f5f9', border: newEmoji === e ? '2px solid #2D7A4F' : '2px solid transparent' }}>
+                      {e}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Preview */}
-              {newName && newTarget && (
-                <div
-                  className="flex items-center gap-3 p-3 rounded-2xl"
-                  style={{ background: `${newColor}10`, border: `1.5px solid ${newColor}30` }}>
-                  <span className="text-2xl">{newEmoji}</span>
-                  <div>
-                    <p className="text-slate-800 font-semibold text-sm">{newName}</p>
-                    <p className="text-slate-500 text-xs">Target: ₦{Number(newTarget).toLocaleString()}</p>
-                  </div>
-                  <div className="ml-auto">
-                    <div className="w-10 h-10">
-                      <svg width="40" height="40" viewBox="0 0 40 40">
-                        <circle cx="20" cy="20" r="16" fill="none" stroke="#e2e8f0" strokeWidth="4" />
-                        <circle cx="20" cy="20" r="16" fill="none" stroke={newColor} strokeWidth="4"
-                          strokeDasharray="0 100.5" strokeLinecap="round" transform="rotate(-90 20 20)" />
-                      </svg>
+              <div>
+                <p className="text-slate-500 text-xs mb-2">Pick a color</p>
+                <div className="flex gap-2">
+                  {COLORS.map(c => (
+                    <button key={c} onClick={() => setNewColor(c)}
+                      className="w-8 h-8 rounded-full transition-all"
+                      style={{ background: c, border: newColor === c ? '3px solid white' : '3px solid transparent', boxShadow: newColor === c ? `0 0 0 2px ${c}` : 'none' }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-4">
+              <button onClick={() => setShowAdd(false)}
+                className="flex-1 py-3 rounded-2xl text-slate-500 font-medium bg-slate-50">Cancel</button>
+              <button onClick={handleAddGoal} disabled={!newName || !newTarget}
+                className="flex-1 py-3 rounded-2xl text-white font-bold disabled:opacity-40"
+                style={{ background: '#2D7A4F' }}>Create Goal</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setShowAdd(true)}
+            className="w-full py-4 rounded-2xl text-[#2D7A4F] font-bold text-sm border-2 border-dashed border-[#2D7A4F]/30 hover:border-[#2D7A4F]/60 transition-all bg-white">
+            + Create New Savings Goal
+          </button>
+        )}
+
+        {/* Fund Wallet Modal */}
+        {showFund && (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center" onClick={() => { setShowFund(false); setFundSuccess(''); setFundError(''); }}>
+            <div className="bg-white rounded-t-3xl w-full max-w-lg p-6 pb-10" onClick={e => e.stopPropagation()}>
+              <h3 className="text-slate-800 font-bold text-lg mb-4">Fund Wallet</h3>
+
+              {fundSuccess ? (
+                <div className="text-center py-6">
+                  <div className="text-4xl mb-3">✅</div>
+                  <p className="text-[#2D7A4F] font-bold text-lg">{fundSuccess}</p>
+                  <button onClick={() => { setShowFund(false); setFundSuccess(''); }}
+                    className="mt-4 px-6 py-3 rounded-2xl text-white font-bold" style={{ background: '#2D7A4F' }}>Done</button>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <p className="text-slate-500 text-xs font-medium mb-2">Amount (₦)</p>
+                    <div className="flex items-center gap-2 px-4 py-3.5 rounded-xl bg-slate-50 border border-slate-100">
+                      <span className="text-slate-600 font-bold">₦</span>
+                      <input type="number" value={fundAmount} onChange={e => setFundAmount(e.target.value)}
+                        placeholder="0" className="bg-transparent text-slate-800 text-xl font-bold outline-none flex-1 placeholder-slate-200" />
                     </div>
                   </div>
-                </div>
+
+                  <div className="mb-5">
+                    <p className="text-slate-500 text-xs font-medium mb-2">Funding Method</p>
+                    <div className="space-y-2">
+                      {(fundMethods.length > 0 ? fundMethods : [
+                        { id: 'bank_transfer', name: 'Bank Transfer', description: 'Transfer from your bank', processingTime: '1-2 hours', fees: 'Free' },
+                        { id: 'debit_card', name: 'Debit Card', description: 'Pay with debit card', processingTime: 'Instant', fees: '2.5%' },
+                        { id: 'mobile_money', name: 'Mobile Money', description: 'MTN, Airtel, Glo', processingTime: 'Instant', fees: '1%' },
+                      ]).map(m => (
+                        <button key={m.id} onClick={() => setFundMethod(m.id)}
+                          className="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all"
+                          style={{
+                            background: fundMethod === m.id ? 'rgba(45,122,79,0.08)' : '#f8fafc',
+                            border: fundMethod === m.id ? '1.5px solid #2D7A4F' : '1.5px solid transparent',
+                          }}>
+                          <div className="text-left">
+                            <p className="text-slate-800 font-semibold text-sm">{m.name}</p>
+                            <p className="text-slate-400 text-xs">{m.description} · {m.processingTime}</p>
+                          </div>
+                          <span className="text-xs font-medium" style={{ color: '#2D7A4F' }}>{m.fees}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {fundError && <p className="text-red-500 text-sm mb-3">{fundError}</p>}
+
+                  <button onClick={handleFundWallet} disabled={fundLoading || !fundAmount}
+                    className="w-full py-4 rounded-2xl text-white font-bold disabled:opacity-40"
+                    style={{ background: '#2D7A4F' }}>
+                    {fundLoading ? 'Processing...' : `Fund ₦${Number(fundAmount || 0).toLocaleString()}`}
+                  </button>
+                </>
               )}
-
-              <div className="flex gap-3 mt-1">
-                <button
-                  onClick={() => setShowAdd(false)}
-                  className="flex-1 py-3 rounded-xl text-slate-600 font-semibold text-sm bg-slate-100">
-                  Cancel
-                </button>
-                <button
-                  onClick={addGoal}
-                  disabled={!newName || !newTarget}
-                  className="flex-1 py-3 rounded-xl text-white font-semibold text-sm transition-all hover:opacity-90 disabled:opacity-40"
-                  style={{ background: newColor }}>
-                  Create Goal
-                </button>
-              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ── Delete Confirm ── */}
-      {deleteGoal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center px-4"
-          style={{ background: 'rgba(0,0,0,0.5)' }}
-          onClick={e => { if (e.target === e.currentTarget) setDeleteGoal(null); }}>
-          <div className="w-full max-w-xs bg-white rounded-2xl p-6 shadow-2xl text-center">
-            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <polyline points="3 6 5 6 21 6" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" />
-                <path d="M19 6l-1 14H6L5 6" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-            <p className="text-slate-800 font-bold text-base mb-1">Delete Goal?</p>
-            <p className="text-slate-400 text-sm mb-5">This will remove the goal and all saved progress.</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setDeleteGoal(null)}
-                className="flex-1 py-3 rounded-xl text-slate-600 font-semibold text-sm bg-slate-100">
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDelete(deleteGoal)}
-                className="flex-1 py-3 rounded-xl text-white font-semibold text-sm bg-red-500">
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        <div className="h-4" />
+      </div>
     </div>
   );
 }

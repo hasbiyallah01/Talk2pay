@@ -4,7 +4,7 @@ import { TranslationProvider } from '@/components/onboarding/TranslationProvider
 
 export const metadata: Metadata = {
   title: 'Talk2Pay - Instant Voice Payments & Cross-border Remittance',
-  description: 'Send money, check balances, and manage savings using your voice or messaging platforms with Talk2Pay, powered by Trust2Pay.',
+  description: 'Send money, check balances, and manage savings using your voice or messaging platforms with Talk2Pay, powered by Talk2Pay.',
 };
 
 export default function RootLayout({

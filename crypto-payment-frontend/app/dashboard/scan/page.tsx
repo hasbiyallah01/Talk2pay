@@ -66,7 +66,7 @@ export default function ScanPage() {
     try {
       const stored = localStorage.getItem('trust2pay_user');
       if (stored) setBalance(JSON.parse(stored).balance ?? 200000);
-    } catch (_) {}
+    } catch (_) { }
   }, []);
 
   const startCamera = async () => {
@@ -110,9 +110,10 @@ export default function ScanPage() {
     try {
       await (track as any).applyConstraints({ advanced: [{ torch: !torchOn }] });
       setTorchOn(t => !t);
-    } catch (_) {}
+    } catch (_) { }
   };
 
+  // TODO: Replace with backend API call for payment completion when available
   const handleConfirmPayment = async () => {
     if (!paymentRequest || paying) return;
     const amt = paymentRequest.amount ?? 0;
@@ -122,6 +123,7 @@ export default function ScanPage() {
     await new Promise(r => setTimeout(r, 1400));
 
     try {
+      // Fallback: localStorage
       const stored = localStorage.getItem('trust2pay_user');
       const user = stored ? JSON.parse(stored) : {};
       const newBal = balance - amt;
@@ -141,7 +143,7 @@ export default function ScanPage() {
         ...txList,
       ]));
       setBalance(newBal);
-    } catch (_) {}
+    } catch (_) { }
 
     setPaying(false);
     setScanState('success');

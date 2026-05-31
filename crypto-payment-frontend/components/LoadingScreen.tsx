@@ -132,7 +132,7 @@ export default function LoadingScreen({ progress, isComplete, onExitDone }: Load
                 fontWeight: 700,
                 color: '#111',
                 letterSpacing: '-0.03em',
-              }}>Trust</span>
+              }}>Talk</span>
               <span style={{
                 fontFamily: "'PPNeueMontreal', sans-serif",
                 fontSize: 'clamp(24px, 4vw, 36px)',

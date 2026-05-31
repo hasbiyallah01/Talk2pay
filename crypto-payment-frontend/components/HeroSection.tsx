@@ -1,7 +1,9 @@
 'use client';
 import { useRef } from 'react';
+import Link from 'next/link';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import PhoneMockup from './PhoneMockup';
+
 
 export default function HeroSection() {
   const ref = useRef<HTMLDivElement>(null);
@@ -22,13 +24,13 @@ export default function HeroSection() {
       {/* Heading */}
       <motion.div
         style={{ y: textY, opacity }}
-        className="text-center z-10 mb-37"
+        className="text-center z-10 mb-52"
       >
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-          className="font-neue text-white/60 text-[10px] tracking-[0.3em] uppercase mb-6"
+          className="font-neue text-white/60 text-[10px] tracking-[0.3em] uppercase mb-2"
         >
           AI-Powered Financial Platform
         </motion.p>
@@ -41,11 +43,22 @@ export default function HeroSection() {
         >
           TALK TO MONEY
           <br />
-          <span style={{ 
+          <span style={{
             WebkitTextStroke: '2px rgba(255,255,255,0.4)',
             color: 'transparent'
           }}>NATURALLY</span>
         </motion.h1>
+
+        <Link href="/auth/signup" className=" md:hidden">
+          <motion.button
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.97 }}
+            className="px-5 py-2.5 bg-white rounded-full text-xs font-candal tracking-widest text-black mt-2 shadow-3xl transition-all duration-300"
+
+          >
+            TRY IT NOW
+          </motion.button>
+        </Link>
       </motion.div>
 
       {/* Phone */}
@@ -60,12 +73,12 @@ export default function HeroSection() {
           className="float-animation h-[400px] w-[700px]"
         >
           <div className="">
-             <img src="/frames/f001.webp" alt="Glow"  className="w-full  h-full object-contain" />     
-             </div>
+            <img src="/frames/f001.webp" alt="Glow" className="w-full  h-full object-contain" />
+          </div>
         </motion.div>
       </motion.div>
 
-      
+
     </div>
   );
 }
