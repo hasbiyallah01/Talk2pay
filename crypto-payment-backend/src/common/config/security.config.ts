@@ -23,25 +23,11 @@ export const SecurityConfig = {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        styleSrc: [
-          "'self'", 
-          "'unsafe-inline'",
-          "https://cdnjs.cloudflare.com",
-          "https://unpkg.com"
-        ],
-        scriptSrc: [
-          "'self'", 
-          "'unsafe-inline'",
-          "https://cdnjs.cloudflare.com",
-          "https://unpkg.com"
-        ],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
         imgSrc: ["'self'", "data:", "https:"],
         connectSrc: ["'self'"],
-        fontSrc: [
-          "'self'",
-          "https://cdnjs.cloudflare.com",
-          "https://unpkg.com"
-        ],
+        fontSrc: ["'self'"],
         objectSrc: ["'none'"],
         mediaSrc: ["'self'"],
         frameSrc: ["'none'"],
